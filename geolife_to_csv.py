@@ -64,7 +64,7 @@ def collect_data(base_dir):
                 if traj_file.endswith(".plt"):
                     file_path = os.path.join(traj_dir, traj_file)
                     records.extend(preprocess_plt(file_path))
-    return pd.DataFrame(records, columns=["lat", "lng", "timestamp"])
+    return pd.DataFrame(records, columns=["latitude", "longitude", "timestamp"])
 
 # Main script
 geolife_dir = os.path.join(RAW_DATA_PATH, "Geolife Trajectories 1.3", "Data")
@@ -83,6 +83,6 @@ if not os.path.exists(PROCESSED_DATA_PATH):
 
 # CSV output with necessary fields
 output_csv_path = os.path.join(PROCESSED_DATA_PATH, "geolife_unique_id.csv")
-df.to_csv(output_csv_path, index=False, columns=["id", "lat", "lng", "timestamp"])
+df.to_csv(output_csv_path, index=False, columns=["id", "latitude", "longitude", "timestamp"])
 
 print(f"CSV file created: {output_csv_path}")
