@@ -1,9 +1,10 @@
 
 """
+Reference:  https://gist.github.com/AlexandraKapp/296f79e77e3b7772f8af486a72689da0
 
-This script is a modified version of Alexandra Kapp's geolife_to_csv.py script found on: https://gist.github.com/AlexandraKapp/296f79e77e3b7772f8af486a72689da0, 
-with our own key modifications which include: removing the geo boundaries filtration, taking only the required elements (latitude, longitude, time), keeping the times
-unmodified, and adding a 12 byte ID to each record
+
+This script is a modified version of Alexandra Kapp's geolife_to_csv.py script, with our own key modifications which include: removing the geo boundaries filtration,
+taking only the required elements (latitude, longitude, time), keeping the times unmodified, and adding a 12 byte ID to each record
 
 While this is not an implementation of a method/design from Wang et al., it is needed to convert and parse the geolife data used in the implemented experiments
 
