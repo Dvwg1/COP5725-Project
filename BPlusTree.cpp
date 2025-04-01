@@ -40,10 +40,10 @@ public:
         string timestamp; // or char*
 
         Node(bool leaf = false)
-        : isLeaf(leaf), next(nullptr), id(0), latitude(0), longitude(0), hilbert_value(0) {} //leave out csv values?
+        : isLeaf(leaf), next(nullptr), id(0), latitude(0), longitude(0), timestamp(""), hilbert_value(0) {} //leave out csv values?
 
 
-        Node(bool leaf = false, int ID, float lon, float lat, string ts, int hilbert)
+        Node(bool leaf, int ID, float lon, float lat, string ts, int hilbert)
             : isLeaf(leaf)
             , next(nullptr)
             //get values from csv file
@@ -70,7 +70,7 @@ public:
     void insertNonFull(Node* node, Node* newNode);
 
     // Function to remove a key from a node
-    void remove(Node* node, T key);
+    void remove(Node* node, Node* nodeRemoved);
 
     // Function to borrow a key from the previous sibling
     void borrowFromPrev(Node* node, int index);
@@ -88,8 +88,8 @@ public:
     BPlusTree(int degree): root(nullptr), t(degree){}
 
     void insert(Node* node);
-    bool search(T key);
-    void remove(T key);
+    bool search(Node* node);
+    void remove(Node* node);
     vector<T> rangeQuery(T lower, T upper);
     void printTree();
 };
@@ -153,8 +153,9 @@ void BPlusTree<T>::insertNonFull(Node* node, Node* newNode)
 
 // Implementation of remove function
 template <typename T>
-void BPlusTree<T>::remove(Node* node, T key)
+void BPlusTree<T>::remove(Node* node, Node* nodeRemoved)
 {
+    T key = nodeRemoved->hilbert_value; 
     // If node is a leaf
     if (node->isLeaf) {
         auto it = find(node->keys.begin(), node->keys.end(),
@@ -176,7 +177,7 @@ void BPlusTree<T>::remove(Node* node, T key)
                 }
                 T pred = predNode->keys.back();
                 node->keys[idx] = pred;
-                remove(node->children[idx], pred);
+                remove(node->children[idx], predNode);
             }
             else if (node->children[idx + 1]->keys.size()
                      >= t) {
@@ -186,11 +187,11 @@ void BPlusTree<T>::remove(Node* node, T key)
                 }
                 T succ = succNode->keys.front();
                 node->keys[idx] = succ;
-                remove(node->children[idx + 1], succ);
+                remove(node->children[idx + 1], succNode);
             }
             else {
                 merge(node, idx);
-                remove(node->children[idx], key);
+                remove(node->children[idx], nodeRemoved);
             }
         }
         else {
@@ -215,7 +216,7 @@ void BPlusTree<T>::remove(Node* node, T key)
                     }
                 }
             }
-            remove(node->children[idx], key);
+            remove(node->children[idx], nodeRemoved);
         }
     }
 }
@@ -306,8 +307,9 @@ template <typename T> void BPlusTree<T>::printTree()
 }
 
 // Implementation of search function
-template <typename T> bool BPlusTree<T>::search(T key)
+template <typename T> bool BPlusTree<T>::search(Node* node)
 {
+    T key = node ->hilbert_value; 
     Node* current = root;
     while (current != nullptr) {
         int i = 0;
@@ -360,12 +362,12 @@ template <typename T> void BPlusTree<T>::insert(Node* node)
 {
     if (root == nullptr) {
         root = new Node(true);
-        root->hilbert_value.push_back(node->hilbert_value);
+        root->keys.push_back(node->hilbert_value);
         root->data.push_back(node); 
 
     }
     else {
-        if (root->hilbert_value.size() == 2 * t - 1) {
+        if (root->keys.size() == 2 * t - 1) {
             Node* newRoot = new Node();
             newRoot->children.push_back(root);
             splitChild(newRoot, 0, root);
@@ -376,12 +378,12 @@ template <typename T> void BPlusTree<T>::insert(Node* node)
 }
 
 // Implementation of remove function
-template <typename T> void BPlusTree<T>::remove(T key)
+template <typename T> void BPlusTree<T>::remove(Node* node)
 {
     if (root == nullptr) {
         return;
     }
-    remove(root, key);
+    remove(root, node);
     if (root->keys.empty() && !root->isLeaf) {
         Node* tmp = root;
         root = root->children[0];
@@ -389,21 +391,45 @@ template <typename T> void BPlusTree<T>::remove(T key)
     }
 }
 
+
+
+__uint128_t convertID(string ID) {
+
+    __uint128_t ret = 0;
+    for (char c : ID) {
+        ret *= 16;
+        if (c >= '0' && c <='9') {
+            ret += c - '0';
+        } 
+        else if (c >= 'a' && c <= 'f') {
+            ret += c - 'a' + 10;
+        }
+        else if (c >= 'A' && c <= 'F') {
+            ret += c - 'A' + 10;
+        }
+
+    }
+    return ret;
+}
+
+
+
 // Main function to test the B+ Tree implementation
 int main()
 {
     BPlusTree<int> tree(3);
 
     //reading from csv file
-    vector<BPlusTree<int>::Node*> nodes;
+    //vector<BPlusTree<int>::Node*> nodes;
 
-    ifstream file("north_america.csv");
+    ifstream file("newCSVforDC.csv");
     if (!file.is_open()) {
         cout << "Error opening the file \n";
         return 0;
     }
 
     string line;
+    getline(file, line); 
     while(getline(file, line)) { 
         stringstream ss(line);
         string getID, getLong, getLat, getTS, getH;
@@ -413,14 +439,16 @@ int main()
             getline(ss,getLat, ',') && 
             getline(ss,getTS, ',') && 
             getline(ss,getH, ',') ) {
-                int id = stoi(getID);
+                //cout << "id, lat, lon, ts, hilbert:" << getID << "\n" ; 
+                //unsigned long long id = stoull(getID, nullptr,16);
+                __uint128_t id = convertID(getID);
                 float lat = stof(getLat);
                 float lon = stof(getLong);
                 int hilbert = stoi(getH);
 
                 BPlusTree<int>::Node* node = new BPlusTree<int>::Node( false, id, lon, lat, getTS, hilbert); 
-                nodes.push_back(node);
-                tree.insert(node); 
+                //nodes.push_back(node);
+                tree.insert(node);
             }
     }
 
@@ -453,7 +481,7 @@ int main()
     // tree.remove(removeKey);
     // cout << "\nB+ Tree after removing " << removeKey << ":"
     //      << endl;
-    // tree.printTree();
+     tree.printTree();
 
     return 0;
 }
