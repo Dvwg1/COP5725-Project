@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <queue>
 
 //for parsing csv file
 #include <fstream>
@@ -286,18 +287,56 @@ void BPlusTree<T>::merge(Node* node, int index)
 template <typename T>
 void BPlusTree<T>::printTree(Node* node, int level)
 {
-    if (node != nullptr) {
-        for (int i = 0; i < level; ++i) {
-            cout << "  ";
+
+    //used to store nodes to be printed
+    queue<pair<Node*, int>> q;
+
+    //add to the queue
+    q.push({root, 0});
+
+    //set current level
+    int currentLevel = 0;
+
+    //print out the first level
+    cout << "Level 0: ";
+
+    //loops until no more values in the queue
+    while (!q.empty()) {
+
+        //populates level and node
+        auto [node, level] = q.front(); q.pop();
+
+        //move to new level
+        if (level != currentLevel) {
+            currentLevel = level;
+            cout << "\nLevel " << level << ": ";
         }
-        for (const T& key : node->keys) {
-            cout << key << " ";
+
+        //label type node 
+        if (node->isLeaf) {
+            cout << "(Leaf) ";
+        } else {
+            cout << "(Internal) ";
         }
-        cout << endl;
-        for (Node* child : node->children) {
-            printTree(child, level + 1);
+
+        //print node keys
+        cout << "[";
+        for (size_t i = 0; i < node->keys.size(); ++i) {
+            cout << node->keys[i];
+            if (i < node->keys.size() - 1)
+                cout << ", ";
+        }
+        cout << "]  ";
+
+        //add children for next level if not leaf
+        if (!node->isLeaf) {
+            for (Node* child : node->children) {
+                q.push({child, level + 1});
+            }
         }
     }
+
+    cout << endl;
 }
 
 // Implementation of printTree wrapper function
@@ -419,18 +458,29 @@ int main()
 {
     BPlusTree<int> tree(3);
 
+    //files to be used
+	string input_csv;
+
     //reading from csv file
     //vector<BPlusTree<int>::Node*> nodes;
 
-    ifstream file("newCSVforDC.csv");
-    if (!file.is_open()) {
-        cout << "Error opening the file \n";
-        return 0;
-    }
+    //allows user to enter the input file and desired output file name
+    cout<<"Enter input file (must end in .csv): ";
+    getline(cin, input_csv);
 
+
+    //loads input_csv into in for reading
+	ifstream in(input_csv);
+
+	//error checking for input file
+	if (!in.is_open()){
+
+		cerr<<"ERROR: .csv file not found/can't be opened!" << endl;
+		return 1;
+	}
     string line;
-    getline(file, line); 
-    while(getline(file, line)) { 
+    getline(in, line); 
+    while(getline(in, line)) { 
         stringstream ss(line);
         string getID, getLong, getLat, getTS, getH;
 
@@ -452,7 +502,7 @@ int main()
             }
     }
 
-    file.close();
+    in.close();
 
     
     

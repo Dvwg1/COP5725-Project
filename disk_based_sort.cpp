@@ -18,6 +18,7 @@ Run this on the desired .csv to be used in tree construction. Will perform an ex
 #include "hilbert.h"
 
 //used for input and data manipulation
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -122,7 +123,7 @@ int main(){
 	getline(in, header);
 
 	//debugging
-	//cout<<chunk_calculator()<<endl;
+	//cout<<chunk_calculator()<<endl;head 
 
 	//size of a chunk based on chunk_calculator()
 	size_t chunk_size = chunk_calculator();
