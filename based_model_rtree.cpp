@@ -13,6 +13,7 @@ Used in some experiments as is
 #include <cstring>
 #include <string>
 #include <queue>
+#include <chrono>
 
 using namespace std;
 
@@ -78,6 +79,9 @@ int main() {
         return 1;
     }
 
+    //starts the timer, at this point the file should have been found
+	auto start = chrono::high_resolution_clock::now();
+
     b_plus_tree tree("tree_pages");
 
     string line;
@@ -117,7 +121,11 @@ int main() {
 
 
     file.close();
+    //ends timer after sorted data set is complete, calculates elapsed time
+	auto end = std::chrono::high_resolution_clock::now();
+	chrono::duration<double> total_time = end - start;
     cout << "Tree built from CSV and stored on disk.\n";
+	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
     //children debugging function call
     print_children(tree);
