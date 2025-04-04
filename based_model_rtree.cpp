@@ -2,6 +2,7 @@
 
 /*
 This is used to construct a base model R-tree using the h_rtree header files.
+Used in some experiments as is
 */
 
 //h_rtree header files
@@ -11,67 +12,118 @@ This is used to construct a base model R-tree using the h_rtree header files.
 #include <sstream>
 #include <cstring>
 #include <string>
+#include <queue>
 
 using namespace std;
 
+//debugging function
+//used to confirm that the children are actually child page IDs
+void print_children( b_plus_tree& tree) {
+
+    //creates a queue to hold nodes, adds the root page for searching
+    queue<int> node_queue;
+    node_queue.push(tree.getRootPage());
+
+    //buffer initialize
+    char buffer[PAGE_SIZE];
+
+    //loops until the entire queue has been iterated
+    while (!node_queue.empty()) {
+
+        //set page id to the first node, and remove
+        int page_id = node_queue.front();
+        node_queue.pop();
+
+        //use the id to read its value
+        tree.getHandler().readPage(page_id, buffer);
+
+        //get the leaf/internal status
+        int is_leaf;
+        memcpy(&is_leaf, buffer, sizeof(int));
+
+        //ends loop if not leaf
+        if (is_leaf) 
+            continue;
+
+        //brings out the node, and prints its keys and children
+        internal_node* node = reinterpret_cast<internal_node*>(buffer);
+        cout << "Internal Node Page ID: " << page_id << endl;
+
+        cout << "  Keys: ";
+        for (int i = 0; i < node->numKeys; ++i)
+            cout << node->keys[i] << " ";
+            
+        cout << "\n  Children: ";
+        for (int i = 0; i <= node->numKeys; ++i)
+            cout << node->children[i] << " ";
+        cout << "\n\n";
+
+        for (int i = 0; i <= node->numKeys; ++i)
+            node_queue.push(node->children[i]);
+    }
+}
+//end of debugging function
+
+
 int main() {
 
-    static_assert(sizeof(Record) <= PAGE_SIZE, "Record too large!");
-    std::cout << "Size of Record: " << sizeof(Record) << " bytes" << std::endl;
 
-    std::string inputFile;
-    std::cout << "Enter CSV file path: ";
-    std::getline(std::cin, inputFile);
+    string inputFile;
+    cout << "Enter CSV file path: ";
+    getline(cin, inputFile);
 
-    std::ifstream file(inputFile);
+    ifstream file(inputFile);
     if (!file.is_open()) {
-        std::cerr << "Failed to open file." << std::endl;
+        cerr << "Failed to open file." << endl;
         return 1;
     }
 
     b_plus_tree tree("tree_pages");
 
-    std::string line;
-    std::getline(file, line); // Skip header
+    string line;
+    getline(file, line); // Skip header
 
-        while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string idStr, latStr, lonStr, tsStr, hStr;
+        while (getline(file, line)) {
+        stringstream ss(line);
+        string idStr, latStr, lonStr, tsStr, hStr;
 
-        if (std::getline(ss, idStr, ',') &&
-            std::getline(ss, latStr, ',') &&
-            std::getline(ss, lonStr, ',') &&
-            std::getline(ss, tsStr, ',') &&
-            std::getline(ss, hStr, ',')) {
+        if (getline(ss, idStr, ',') &&
+            getline(ss, latStr, ',') &&
+            getline(ss, lonStr, ',') &&
+            getline(ss, tsStr, ',') &&
+            getline(ss, hStr, ',')) {
 
             try {
                 Record r;
                 strncpy(r.id, idStr.c_str(), sizeof(r.id));
                 r.id[sizeof(r.id) - 1] = '\0';
 
-                r.lon = std::stof(latStr);
-                r.lat = std::stof(lonStr);
+                r.lon = stof(latStr);
+                r.lat = stof(lonStr);
                 strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
                 r.timestamp[sizeof(r.timestamp) - 1] = '\0';
-                r.hilbert = std::stoi(hStr);
+                r.hilbert = stoi(hStr);
 
                 tree.insert(r.hilbert, r);
             } 
             
             //error catching for debugging
-            catch (const std::exception& e) {
-                std::cerr << "Invalid line (skipping): " << line << "\\n";
-                std::cerr << "  Error: " << e.what() << "\\n";
+            catch (const exception& e) {
+                cerr << "Invalid line (skipping): " << line << "\\n";
+                cerr << "  Error: " << e.what() << "\\n";
             }
         } 
     }
 
 
     file.close();
-    std::cout << "Tree built from CSV and stored on disk.\n";
+    cout << "Tree built from CSV and stored on disk.\n";
+
+    //children debugging function call
+    print_children(tree);
 
     //tree.exportToDot("tree.dot");
-    //std::cout << "DOT file generated: tree.dot\n";
+    //cout << "DOT file generated: tree.dot\n";
 
     return 0;
 }

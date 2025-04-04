@@ -214,7 +214,7 @@ void b_plus_tree::insert(int key, const Record& rec) {
         //debugging code
         //cout << "entered the new root check" << endl;
 
-        int newRoot = createInternal();
+        int new_root = createInternal();
 
         //memory safe root node intiilialization
         char buffer[PAGE_SIZE] = {0};
@@ -222,14 +222,15 @@ void b_plus_tree::insert(int key, const Record& rec) {
         *root = internal_node{};
 
         //root node values, current has just one key, set key to promoted key, has the old root as its child
+        root->is_leaf = 0;
         root->numKeys = 1;
         root->keys[0] = promoted_key;
         root->children[0] = root_page;
         root->children[1] = new_child_page;
-
+        
         //write root node, save root node 
-        handler.writePage(newRoot, buffer, sizeof(internal_node));
-        root_page = newRoot;
+        handler.writePage(new_root, buffer, sizeof(internal_node));
+        root_page = new_root;
         saveRoot();
     }
 

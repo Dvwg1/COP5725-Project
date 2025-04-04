@@ -138,10 +138,17 @@ public:
     void insert(int key, const Record& rec);
     void remove(int key);
     vector<Record> rangeQuery(int low, int high);
+
+    //used to get root and handler info for main
+    int getRootPage()  { return root_page; }
+    page_handler& getHandler()  { return handler; }
+    
+    
+
     //void exportToDot(const string& filename);
 
 private:
-    
+
     //b plus tree will have its own instance of handler
     page_handler handler;
 
