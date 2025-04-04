@@ -32,6 +32,7 @@ Run this on the desired .csv to be used in tree construction. Will perform an ex
 //needed for calculations
 #include <algorithm>
 #include <utility>
+#include <chrono>
 
 //used to get system info needed for chunk size calculations
 #include <sys/sysinfo.h>
@@ -118,6 +119,9 @@ int main(){
 		return 1;
 	}
 
+	//starts the timer, at this point the file should have been found
+	auto start = chrono::high_resolution_clock::now();
+
 	//saves the header from the input file to be used later'
 	string header;
 	getline(in, header);
@@ -153,6 +157,7 @@ int main(){
 
 		//create chunk file
 		chunks_to_temp_csv(record_vector, chunk_id++);
+
 	}
 
 
@@ -166,8 +171,16 @@ int main(){
 	out << "id,latitude,longitude,timestamp,hilbert_value" << "\n";
 	out.close();
 
+	//ends timer after sorted data set is complete, calculates elapsed time
+	auto end = std::chrono::high_resolution_clock::now();
+	chrono::duration<double> total_time = end - start;
+	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
+
 	//merge all chunk files into one gigafile
 	merge_chunks(chunk_id, output_csv);
+
+	//removes the residual chunk_0.csv file
+	filesystem::remove("chunk_0.csv");
 
 	return 0;
 

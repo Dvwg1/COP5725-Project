@@ -42,40 +42,42 @@ extern double lat_max;
 extern double lon_min;
 extern double lon_max;
 
+using namespace std;
+
 //used to obtain the max and min longitude and latitiude from a specified csv
-void max_and_min_finder(const std::string& filename) {
+void max_and_min_finder(const string& filename) {
 
 	//attempts to open specified value - gives warning if can't
-    std::ifstream file(filename);
+    ifstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "ERROR: .csv file not found/can't be opened! " << filename << '\n';
+        cerr << "ERROR: .csv file not found/can't be opened! " << filename << '\n';
         return;
     }
 
     //stores line from csv
-    std::string line;
+    string line;
 
     //used to mark first read instance
     bool first = true;
 
     //used to skip the header line
-    std::getline(file, line);
+    getline(file, line);
 
     //iterate through the file line by line
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
+    while (getline(file, line)) {
+        stringstream ss(line);
 
       	//variables to store latitude and longitude. id is stored as it is skipped
-        std::string lat_str, lon_str, id_str;
+        string lat_str, lon_str, id_str;
 
         //reading in the values line by line
-        if (!std::getline(ss, id_str, ',')) continue;
-        if (!std::getline(ss, lat_str, ',')) continue;
-        if (!std::getline(ss, lon_str, ',')) continue;
+        if (!getline(ss, id_str, ',')) continue;
+        if (!getline(ss, lat_str, ',')) continue;
+        if (!getline(ss, lon_str, ',')) continue;
 
         //convert string lats and lons to string
-        double lat = std::stod(lat_str);
-        double lon = std::stod(lon_str);
+        double lat = stod(lat_str);
+        double lon = stod(lon_str);
 
         //set the first instances as the max
         if (first) {
@@ -100,7 +102,7 @@ void max_and_min_finder(const std::string& filename) {
 
 //normalizes latitude and longitidue coordinate into a 2D grid (0 to 2^p - 1)
 //p can be changed to any value, though Kamel & Faloutsos seem to recommend 8 
-std::pair<int, int> normalize_coords(double latitude, double longitude,double lat_min, double lat_max,
+pair<int, int> normalize_coords(double latitude, double longitude,double lat_min, double lat_max,
                                      double lon_min, double lon_max, int p) {
 
 	//calculates 2^p and sets it equal to n
@@ -134,7 +136,7 @@ int xy2d(int n, int x, int y) {
                 x = n - 1 - x;
                 y = n - 1 - y;
             }
-            std::swap(x, y);
+            swap(x, y);
         }
     }
     return d;
