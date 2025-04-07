@@ -1,4 +1,4 @@
-// --- Hilbert R-Tree ---
+// --- RS-Tree ---
 
 /*
 References:
@@ -7,13 +7,12 @@ https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 https://github.com/andylamp/BPlusTree
 https://github.com/myui/btree4j
 
-The first link was used for the architecture needed to construct a B+ tree, as all the 
-R-tree is is a Hilbert Value sorted B+ Tree. We of course adapated and modified the tree into the Hilbert R-Tree.
-We first implemented this as an internal tree.
+Based off of our implementation of the Hilbert sorted B+-tree, we make modifications needed to 
+transform it into the RS-tree described in the paper. An important note is that we will
+not be using the optional insertion buffers, batch buffering, and queries will be done
+using Hilbert values rather than with coordinates.
 
-The last two links are used as inspiration for the disk based implementation of the B+ tree.
-
---- Hilbert R-Tree function and struct declarations ---
+---RS-Tree function and struct declarations ---
 
 */
 
@@ -165,10 +164,10 @@ private:
     void splitLeaf(leaf_node& node, const Record& rec, int& promoted_key, int& newPageID);
     void splitInternal(internal_node& node, int newKey, int new_child_page, int& promoted_key, int& newPageID);
 
-    /*
+    
     void removeRecursive(int pageID, int key, bool& merged);
-    void printDotNode(ofstream& out, int pageID);
-    */
+    //void printDotNode(ofstream& out, int pageID);
+    
 };
 
 extern const string ROOT_META_FILE;

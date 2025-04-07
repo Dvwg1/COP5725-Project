@@ -1,4 +1,4 @@
-//--- Hilbert R-Tree ---
+//--- RS-Tree ---
 
 /*
 This is used to construct a base model R-tree using the h_rtree header files.
@@ -6,7 +6,7 @@ Used in some experiments as is
 */
 
 //h_rtree header files
-#include "rtree.hpp"
+#include "RStree.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -82,7 +82,7 @@ int main() {
     //starts the timer, at this point the file should have been found
 	auto start = chrono::high_resolution_clock::now();
 
-    b_plus_tree tree("tree_pages");
+    b_plus_tree tree("RStree_pages");
 
     string line;
     getline(file, line); // Skip header
@@ -124,18 +124,14 @@ int main() {
     //ends timer after sorted data set is complete, calculates elapsed time
 	auto end = std::chrono::high_resolution_clock::now();
 	chrono::duration<double> total_time = end - start;
-    cout << "Tree built from CSV and stored on disk.\n";
+    cout << "RS-Tree built from CSV and stored on disk.\n";
 	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
     //children debugging function call
     print_children(tree);
 
-    tree.remove(1364);
-
-
-    tree.exportToDot("tree.dot");
-    cout << "DOT file generated: tree.dot\n";
-
+    //tree.exportToDot("tree.dot");
+    //cout << "DOT file generated: tree.dot\n";
 
     return 0;
 }
