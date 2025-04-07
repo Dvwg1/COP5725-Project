@@ -145,7 +145,7 @@ public:
     
     
 
-    //void exportToDot(const string& filename);
+    void exportToDot(const string& filename);
 
 private:
 
@@ -165,10 +165,10 @@ private:
     void splitLeaf(leaf_node& node, const Record& rec, int& promoted_key, int& newPageID);
     void splitInternal(internal_node& node, int newKey, int new_child_page, int& promoted_key, int& newPageID);
 
-    /*
+    
     void removeRecursive(int pageID, int key, bool& merged);
     void printDotNode(ofstream& out, int pageID);
-    */
+    
 };
 
 extern const string ROOT_META_FILE;

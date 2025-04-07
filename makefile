@@ -9,7 +9,13 @@ SRCS = base_model_rtree.cpp rtree.cpp
 SORT_TARGET = sort  
 SORT_SRC = disk_based_sort.cpp  
 
-all: $(TARGET) $(SORT_TARGET)
+RS_TARGET = rs_tree
+RS_SRC = RS-tree_main.cpp RStree.cpp 
+
+all: $(TARGET) $(SORT_TARGET) $(RS_TARGET)
+
+$(RS_TARGET): $(RS_SRC)
+	$(CXX) $(CXXFLAGS) -o $@ $(RS_SRC)
 
 $(TARGET): $(SRCS)  
 	$(CXX) $(CXXFLAGS) -o $@ $(SRCS)
@@ -18,5 +24,6 @@ $(SORT_TARGET): $(SORT_SRC)
 	$(CXX) $(CXXFLAGS) -o $@ $(SORT_SRC)
 
 clean:  
-	rm -f $(TARGET) $(SORT_TARGET)  
+	rm -f $(TARGET) $(SORT_TARGET) $(RS_TARGET) 
 	rm -rf tree_pages/ *.dot *.png
+	rm -rf RStree_pages
