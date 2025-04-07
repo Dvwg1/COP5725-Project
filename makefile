@@ -4,7 +4,7 @@ CXX = g++
 CXXFLAGS = -std=c++17 -O2 -Wall  
 
 TARGET = h_rtree  
-SRCS = based_model_rtree.cpp rtree.cpp  
+SRCS = base_model_rtree.cpp rtree.cpp  
 
 SORT_TARGET = sort  
 SORT_SRC = disk_based_sort.cpp  
