@@ -1,4 +1,4 @@
-// --- RS-Tree ---
+// --- Hilbert R-Tree ---
 
 /*
 References:
@@ -7,17 +7,18 @@ https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 https://github.com/andylamp/BPlusTree
 https://github.com/myui/btree4j
 
-Based off of our implementation of the Hilbert sorted B+-tree, we make modifications needed to 
-transform it into the RS-tree described in the paper. An important note is that we will
-not be using the optional insertion buffers, batch buffering, and queries will be done
-using Hilbert values rather than with coordinates.
+The first link was used for the architecture needed to construct a B+ tree, as all the 
+R-tree is is a Hilbert Value sorted B+ Tree. We of course adapated and modified the tree into the Hilbert R-Tree.
+We first implemented this as an internal tree.
 
---- RS-Tree function and helper function implementation ---
+The last two links are used as inspiration for the disk based implementation of the B+ tree.
+
+--- Hilbert R-Tree function and helper function implementation ---
 
 */
 
 
-#include "RStree.hpp"
+#include "rtree.hpp"
 
 //data manipulation
 #include <fstream>
@@ -38,7 +39,7 @@ using namespace std;
 namespace fs = filesystem;
 
 //root.meta is used for page directory organization
-const string ROOT_META_FILE = "RStree_pages/root.meta";
+const string ROOT_META_FILE = "tree_pages/root.meta";
 
 
 /*page_handler functions*/
@@ -510,7 +511,94 @@ vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     return result;
 }
 
-/*
+//calls the remove recursive function, while setting merged status to false
+void  b_plus_tree::remove(int key) {
+
+    bool merged = false;
+    removeRecursive(root_page, key, merged);
+}
+
+//main remove functionality, as it is down recursively
+void  b_plus_tree::removeRecursive(int pageID, int key, bool& merged) {
+
+    //memory safe buffer intialization and read
+    char buffer[PAGE_SIZE] = {0};  
+    handler.readPage(pageID, buffer);
+
+    //used to determine, from buffer, if the page is for an internal or leaf node
+    int is_leaf;
+    memcpy(&is_leaf, buffer, sizeof(int));
+
+    //leaf node condition
+    if (is_leaf) {
+
+        //create a leaf node using the buffer
+        leaf_node* node = reinterpret_cast<leaf_node*>(buffer);
+        
+        //initial value
+        int i = 0;
+
+        //find the index of the key that is to be removed 
+        while (i < node->record_num && node->records[i].hilbert < key) 
+            i++;
+
+        //if the key exists, removed by shifrting later records to the left
+        if (i < node->record_num && node->records[i].hilbert == key) {
+
+            for (int j = i; j < node->record_num - 1; ++j)
+                node->records[j] = node->records[j + 1];
+
+            //decrease the count 
+            node->record_num--;
+
+            //write the updated leaf node back to disk
+            handler.writePage(pageID, buffer, sizeof(leaf_node));
+        }
+
+        //deleting a leaf node should not trigger a merge
+        merged = false;
+    } 
+    
+    //internal node condition
+    else {
+
+        //create an internal node using the buffer
+        internal_node* node = reinterpret_cast<internal_node*>(buffer);
+
+        //initial value
+        int i = 0;
+
+        //find the index of key that is to be removed
+        while (i < node->numKeys && key > node->keys[i]) 
+            i++;
+
+        //recurse into the child that may contain 
+        bool childMerged = false;
+        removeRecursive(node->children[i], key, childMerged);
+
+        //if the child indicated that it was merged, was empited
+        if (childMerged && i + 1 < node->numKeys) {
+
+            //remove the corresponding key and child pointer in the internal node
+            for (int j = i; j < node->numKeys - 1; ++j) {
+
+                node->keys[j] = node->keys[j + 1];
+                node->children[j + 1] = node->children[j + 2];
+            }
+
+            //decrease the number of keys
+            node->numKeys--;
+
+            //write the updated node back to the disk
+            handler.writePage(pageID, buffer, sizeof(internal_node));
+        }
+
+        //marked as merged
+        merged = (node->numKeys == 0);
+    }
+}
+
+
 void b_plus_tree::exportToDot(const string& filename) {
     ofstream out(filename);
     out << "digraph b_plus_tree {\nnode [shape=record];\n";
@@ -556,4 +644,3 @@ void b_plus_tree::printDotNode(ofstream& out, int pageID) {
     }
     out << "\"];\n";
 }
-*/
