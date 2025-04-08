@@ -403,7 +403,8 @@ void b_plus_tree::splitInternal(internal_node& old_node, int insert_key, int ins
     //loop to maintain key order, similar to how record order is maintained
     //i will record where new key is to go
     int i = 0;
-    while (i < totalKeys && insert_key > old_node.keys[i]) i++;
+    while (i < totalKeys && insert_key > old_node.keys[i]) 
+        i++;
 
     //shifts keys to the right of i and inserts the new key correctly
     for (int j = 0; j < i; ++j) 
@@ -415,9 +416,13 @@ void b_plus_tree::splitInternal(internal_node& old_node, int insert_key, int ins
         keys[j + 1] = old_node.keys[j];
 
     //shifts keys to the right of i and inserts new child correctly
-    for (int j = 0; j <= i; ++j) children[j] = old_node.children[j];
+    for (int j = 0; j <= i; ++j) 
+        children[j] = old_node.children[j];
+
     children[i + 1] = insert_page_id;
-    for (int j = i + 1; j <= totalKeys; ++j) children[j + 1] = old_node.children[j];
+    
+    for (int j = i + 1; j <= totalKeys; ++j)
+        children[j + 1] = old_node.children[j];
 
     //total to indicate key total, which is used to determine how many records to split left
     int key_total= totalKeys + 1;
