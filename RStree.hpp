@@ -10,7 +10,8 @@ https://github.com/myui/btree4j
 Based off of our implementation of the Hilbert sorted B+-tree, we make modifications needed to 
 transform it into the RS-tree described in the paper. An important note is that we will
 not be using the optional insertion buffers, batch buffering, and queries will be done
-using Hilbert values rather than with coordinates.
+using Hilbert values rather than with coordinates. Moreover, only the leaf nodes will be
+stored in disk, as recommended by Dr. Zhao
 
 ---RS-Tree function and struct declarations ---
 
@@ -22,13 +23,14 @@ using Hilbert values rather than with coordinates.
 //needed for data manipulation
 #include <vector>
 #include <string>
+#include <iostream>
 
 using namespace std;
 
 //Note: pages represent a node
 
 //defines the Page size to be 8000 bytes, as Wang et al. have their page sizes set to 8 KB
-constexpr size_t PAGE_SIZE = 8000;
+//constexpr size_t PAGE_SIZE = 8000;
 
 //Arbritary amount of records to be included in a node, set to 100 to ensure no overflow
 constexpr int MAX_LEAF_RECORDS = 100;
@@ -40,7 +42,7 @@ constexpr int MAX_INTERNAL_KEYS = 15;
 constexpr int INVALID_PAGE = -1;
 
 //defines external variable name for needed root file 
-extern const string ROOT_META_FILE;
+//extern const string ROOT_META_FILE;
 
 //used for packing alignment - memory issues without
 #pragma pack(push, 1)
@@ -64,9 +66,11 @@ struct Record {
 //used in conjunction with push
 #pragma pack(pop)
 
-
 //dynamic record size assignment used in testing, we kept anyways
 constexpr size_t RECORD_SIZE = sizeof(Record);  
+
+struct leaf_node;
+struct internal_node;
 
 //leaf node, stores records
 struct leaf_node {
@@ -75,14 +79,14 @@ struct leaf_node {
     int is_leaf = 1;
 
     int record_num = 0;
-    int next_leaf_page = INVALID_PAGE;
+    //int next_leaf_page = INVALID_PAGE;
 
     //max amount of records per leaf node
     Record records[MAX_LEAF_RECORDS];
-};
 
-//error checking 
-static_assert(sizeof(leaf_node) <= PAGE_SIZE, "leaf_node exceeds page size");
+    //initialize leaf_node in nullptr
+    leaf_node* next_leaf = nullptr;
+};
 
 //internal node, stores key (used as MBB) and children nodes
 struct internal_node {
@@ -93,12 +97,10 @@ struct internal_node {
   
     //children and keys
     int keys[MAX_INTERNAL_KEYS];
-    int children[MAX_INTERNAL_KEYS + 1];
+    void* children[MAX_INTERNAL_KEYS + 1];
 };
 
-//error checking
-static_assert(sizeof(internal_node) <= PAGE_SIZE, "internal_node exceeds page size");
-
+/*
 //class used to handle pages for inserts, writes, reads. base of I/O functionality
 class page_handler {
 
@@ -124,48 +126,53 @@ private:
 
     void loadNextPageID();
 };
+*/
 
 //our B+ tree class, containing its needed functions to be created and operated upon
 class b_plus_tree {
 public:
 
     //constructor
-    b_plus_tree(const string& dir);
+    b_plus_tree();
 
-    //I/O operations functions 
+    //same as in r-tre, but modified for memory applications
     void insert(int key, const Record& rec);
     void remove(int key);
     vector<Record> rangeQuery(int low, int high);
 
+    //visualizing
+    void printTree();
+
     //used to get root and handler info for main
-    int getRootPage()  { return root_page; }
-    page_handler& getHandler()  { return handler; }
+    //int getRootPage()  { return root_page; }
+    //page_handler& getHandler()  { return handler; }
     
     
 
-    void exportToDot(const string& filename);
+    //void exportToDot(const string& filename);
 
 private:
 
     //b plus tree will have its own instance of handler
-    page_handler handler;
+    //page_handler handler;
 
     //stores the root page id 
-    int root_page;
+    void * root = nullptr;
 
     //further explanation seen in cpp
-    int createLeaf();
-    int createInternal();
+    //int createLeaf();
+    //int createInternal();
 
-    void saveRoot();
-    void insertRecursive(int pageID, int key, const Record& rec, int& promoted_key, int& new_child_page);
+    //void saveRoot();
+    void insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child);
 
-    void splitLeaf(leaf_node& node, const Record& rec, int& promoted_key, int& newPageID);
-    void splitInternal(internal_node& node, int newKey, int new_child_page, int& promoted_key, int& newPageID);
+    //modified to be memory based
+    void splitLeaf(leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node);
+    void splitInternal(internal_node* old_node, int insert_key, void* insert_child, int& promoted_key, void*& new_node);
 
     
-    void removeRecursive(int pageID, int key, bool& merged);
-    void printDotNode(ofstream& out, int pageID);
+    void removeRecursive(void * node, int key, bool& merged);
+    //void printDotNode(ofstream& out, int pageID);
     
 };
 
