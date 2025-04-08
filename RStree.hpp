@@ -16,7 +16,6 @@ using Hilbert values rather than with coordinates.
 
 */
 
-
 //a check to make sure that this header file is only included once
 #pragma once
 
@@ -144,7 +143,7 @@ public:
     
     
 
-    //void exportToDot(const string& filename);
+    void exportToDot(const string& filename);
 
 private:
 
@@ -166,7 +165,7 @@ private:
 
     
     void removeRecursive(int pageID, int key, bool& merged);
-    //void printDotNode(ofstream& out, int pageID);
+    void printDotNode(ofstream& out, int pageID);
     
 };
 
