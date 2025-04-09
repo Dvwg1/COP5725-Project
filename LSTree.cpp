@@ -23,25 +23,9 @@ const string LS_ROOT_META_FILE = "ls_tree_pages/root.meta";
 ls_tree::ls_tree(const string& dir) : handler(dir) {
 
     fs::create_directory(dir);
-
-
-    // //opens the root.meta file for writing
-    // ifstream in(ROOT_META_FILE);
-
-    // //if exists and real, will read root page ID into root_page
-    // if (in.is_open()) {
-    //     in >> root_page;
-    // } 
-    
-    // //if doesn't exist yet, create a leaf node, save to disk, saves root value
-    // //else {
-    // //    root_page = createLeaf();
-    // //    saveRoot();
-    // //}
-    // saveRoot(); 
-
-
 }
+
+
 
 
 /*void ls_tree::addToTree(b_plus_tree& btree, int key, const Record& rec) {

@@ -87,8 +87,10 @@ int main() {
 
     string line;
 
-    int counter = 0; 
-    string directroy = "btree1"; 
+    int counter = 0;
+    int directoryCounter = 1;  
+    string directroy = "ls_tree_pages/btree1"; 
+    string strDCounter; 
     getline(file, line); // Skip header
 
     //for (int i = 0; i < numRecords; i++)
@@ -101,6 +103,7 @@ int main() {
         string idStr, latStr, lonStr, tsStr, hStr;
 
         counter++; 
+        
         //numRecords = numRecords / 2; 
 
         if (getline(ss, idStr, ',') &&
@@ -124,22 +127,21 @@ int main() {
                 //cout << "test1" << endl;
                 if (counter > numRecords) {
                     //new to create a new btree
-                    //cout << "hello world" << endl;
                     numRecords = numRecords / 2;
                     cout << "numRecords: "<< numRecords << endl; 
                     counter = 0; 
-                    directroy.back() = '2'; 
+                    directoryCounter++;
+                    strDCounter = to_string(directoryCounter);
+                    directroy.back() = strDCounter[0]; 
                     //return 0;
                 } else {
                     tree.addToTree(directroy, r.hilbert, r);
                 }
-                if (numRecords <= 50) {
+                if (numRecords <= 10) {
                     cout << "numRecords: "<< numRecords << endl;
                     break; 
                 }
                 
-                //cout << "test 2" <<endl; 
-                //return 0 ;
                 
             } 
             
