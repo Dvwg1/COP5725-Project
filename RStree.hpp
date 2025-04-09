@@ -197,6 +197,8 @@ private:
 
     int createDiskLeaf();
 
+    void splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, int & new_page_id);
+
     void saveRoot();
 
     
