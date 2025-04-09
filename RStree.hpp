@@ -176,6 +176,9 @@ private:
     //given page id, returns corresponding pointer
     inline void* pageIDToPointer(int id) const;
 
+    //verifier of pointer
+    inline bool isPointerValid(void * ptr) const;
+
     /*memory related functionality*/
     //stores the root page id 
     void * root;

@@ -34,7 +34,7 @@ int main() {
 	auto start = chrono::high_resolution_clock::now();
 
     //initialize memory-based RS-tree
-    b_plus_tree tree;
+    b_plus_tree tree("tree_pages");
 
     string line;
     getline(file, line);
