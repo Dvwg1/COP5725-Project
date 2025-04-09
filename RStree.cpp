@@ -42,7 +42,6 @@ const string ROOT_META_FILE = "tree_pages/root.meta";
 
 
 /*page_handler functions*/
-/*
 //constructor, calls the cre
 page_handler::page_handler(const string& dir) : directory(dir),next_page_id(0) {
 
@@ -114,7 +113,7 @@ string page_handler::getPagePath(int pageID) {
     //returns the page needed in directory format
     return directory + "/page_" + to_string(pageID) + ".bin";
 }
-*/
+
 /*end of page handler functions*/
 
 /*B Plus Tree function declaration*/
@@ -150,9 +149,60 @@ void b_plus_tree::saveRoot() {
 }
 */
 
-
-b_plus_tree::b_plus_tree() {
+//full memory constructor
+// perhaps the sketchiest patch I have ever done here at the great FSU
+// with a non-sense directory for handler
+b_plus_tree::b_plus_tree() : handler("dont_open_nothing_inside/"){
     root = nullptr;
+}
+
+//hybrid constructor
+b_plus_tree::b_plus_tree(const string& dir) : handler(dir) {
+
+    //creates the specified directory, from directory loads in next page ID
+    int leaf_page_id = handler.pageIncrementer();
+
+    //buffer initialized safely
+    char buffer[PAGE_SIZE] = {};
+
+    //buffer intialized as disk leaf node
+    disk_leaf_node* disk_leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+    
+    //initialize all fields to default
+    * disk_leaf = disk_leaf_node{};
+    disk_leaf->is_leaf = 1;
+    disk_leaf->record_num =0;
+    //initialized to be linked to nothing, since would be first record
+    disk_leaf->next_leaf_page = INVALID_PAGE;
+
+    //write node to disk
+    handler.writePage(leaf_page_id, buffer, sizeof(disk_leaf_node));
+
+    //root created as internal node in memory
+    internal_node * root_internal = new internal_node();
+
+    //initialize memory values
+    root_internal->is_leaf = 0;
+    root_internal->numKeys = 0;
+
+    //root made to point to leaf using the translator
+    root_internal->children[0] = pageIDToPointer(leaf_page_id);
+
+    //tree root set to newly created root
+    root = root_internal;
+
+}
+
+//given page id, returns corresponding pointer
+inline void* b_plus_tree::pageIDToPointer(int id) const {
+    
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(id));
+}
+
+//given pointer, returns corresponding page id
+inline int b_plus_tree::pointerToPageID(void* ptr) const {
+
+    return static_cast<int>(reinterpret_cast<uintptr_t>(ptr));
 }
 
 //used to insert new records into nodes 
@@ -161,9 +211,9 @@ void b_plus_tree::insert(int key, const Record& rec) {
     //if no root, initialize one
     if (!root) {
         
-        //set root to leaf_node
-        root = new leaf_node();
-        reinterpret_cast<leaf_node*>(root)->is_leaf = 1;
+        //set root to mem_leaf_node
+        root = new mem_leaf_node();
+        reinterpret_cast<mem_leaf_node*>(root)->is_leaf = 1;
     }
 
     //promoted key will move up upon update
@@ -197,10 +247,10 @@ void b_plus_tree::insert(int key, const Record& rec) {
 void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child) {
 
     //leaf node condition
-    if (reinterpret_cast<leaf_node*>(node)->is_leaf) {
+    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
         //create a leaf node pointer instance
-        leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
         //if the leaf node/page has enough room for a record
         if (leaf->record_num < MAX_LEAF_RECORDS) {
@@ -287,7 +337,7 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
 }
 
 //used when leaf node needs to be split
-void b_plus_tree::splitLeaf(leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node_ptr) {
+void b_plus_tree::splitLeaf(mem_leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node_ptr) {
 
     //creates temporary array to hold all node records in addition to one more
     Record temp[MAX_LEAF_RECORDS + 1];
@@ -313,7 +363,7 @@ void b_plus_tree::splitLeaf(leaf_node* old_node, const Record& record, int& prom
         old_node->records[i] = temp[i];
 
     //creates and initiazlies the new node, pulling from temp using the for loop
-    leaf_node* new_node = new leaf_node();
+    mem_leaf_node* new_node = new mem_leaf_node();
     new_node->record_num = j - mid;
     for (i = 0; i < new_node->record_num; ++i)
         new_node->records[i] = temp[mid + i];
@@ -405,7 +455,7 @@ std::vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     void* node = root;
 
     //loops through all possible leaves
-    while (!reinterpret_cast<leaf_node*>(node)->is_leaf) {
+    while (!reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
         //create instance of node
         internal_node* internal = reinterpret_cast<internal_node*>(node);
@@ -422,7 +472,7 @@ std::vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     }
 
     //create instance of leaf node
-    leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+    mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
     //at this point, should be a leaf
     while (leaf) {
@@ -458,10 +508,10 @@ void b_plus_tree::remove(int key) {
 void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
 
     //leaf node condition
-    if (reinterpret_cast<leaf_node*>(node)->is_leaf) {
+    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
         //creates a leaf node
-        leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
         //initial value
         int i = 0;
@@ -545,10 +595,10 @@ void b_plus_tree::printTree() {
         q.pop();
 
         //leaf node condition
-        if (reinterpret_cast<leaf_node*>(node)->is_leaf) {
+        if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
             //create leaf node instance of the node
-            leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+            mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
             //print that it is, in fact, a leaf (wow)
             cout << "Leaf: ";
