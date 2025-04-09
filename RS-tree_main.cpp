@@ -1,12 +1,12 @@
-//--- Hilbert R-Tree ---
+//--- RS-Tree ---
 
 /*
-This is used to construct a base model R-tree using the h_rtree header files.
+This is used to construct an RS-tree using the h_rtree header files.
 Used in some experiments as is
 */
 
 //h_rtree header files
-#include "rtree.hpp"
+#include "RStree.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -17,57 +17,8 @@ Used in some experiments as is
 
 using namespace std;
 
-//debugging function
-//used to confirm that the children are actually child page IDs
-void print_children( b_plus_tree& tree) {
-
-    //creates a queue to hold nodes, adds the root page for searching
-    queue<int> node_queue;
-    node_queue.push(tree.getRootPage());
-
-    //buffer initialize
-    char buffer[PAGE_SIZE];
-
-    //loops until the entire queue has been iterated
-    while (!node_queue.empty()) {
-
-        //set page id to the first node, and remove
-        int page_id = node_queue.front();
-        node_queue.pop();
-
-        //use the id to read its value
-        tree.getHandler().readPage(page_id, buffer);
-
-        //get the leaf/internal status
-        int is_leaf;
-        memcpy(&is_leaf, buffer, sizeof(int));
-
-        //ends loop if not leaf
-        if (is_leaf) 
-            continue;
-
-        //brings out the node, and prints its keys and children
-        internal_node* node = reinterpret_cast<internal_node*>(buffer);
-        cout << "Internal Node Page ID: " << page_id << endl;
-
-        cout << "  Keys: ";
-        for (int i = 0; i < node->numKeys; ++i)
-            cout << node->keys[i] << " ";
-            
-        cout << "\n  Children: ";
-        for (int i = 0; i <= node->numKeys; ++i)
-            cout << node->children[i] << " ";
-        cout << "\n\n";
-
-        for (int i = 0; i <= node->numKeys; ++i)
-            node_queue.push(node->children[i]);
-    }
-}
-//end of debugging function
-
 
 int main() {
-
 
     string inputFile;
     cout << "Enter CSV file path: ";
@@ -82,12 +33,13 @@ int main() {
     //starts the timer, at this point the file should have been found
 	auto start = chrono::high_resolution_clock::now();
 
+    //initialize memory-based RS-tree
     b_plus_tree tree("tree_pages");
 
     string line;
-    getline(file, line); // Skip header
+    getline(file, line);
 
-        while (getline(file, line)) {
+    while (getline(file, line)) {
         stringstream ss(line);
         string idStr, latStr, lonStr, tsStr, hStr;
 
@@ -124,18 +76,27 @@ int main() {
     //ends timer after sorted data set is complete, calculates elapsed time
 	auto end = std::chrono::high_resolution_clock::now();
 	chrono::duration<double> total_time = end - start;
-    cout << "Tree built from CSV and stored on disk.\n";
+    cout << "RS-Tree built from CSV and stored on disk.\n";
 	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
-    //children debugging function call
-    print_children(tree);
+    tree.printTree();
 
+    //official goobab function tests
+    /*
     tree.remove(1364);
 
+    vector<Record> results = tree.rangeQuery(1300, 6000);
 
-    tree.exportToDot("tree.dot");
-    cout << "DOT file generated: tree.dot\n";
 
+    for (const Record& r : results) {
+
+        cout << "  [" << r.hilbert << "] "
+        << r.id << " | "
+        << "(" << r.lon << ", " << r.lat << ") | "
+        << r.timestamp << "\n";
+
+    }
+    */
 
     return 0;
 }
