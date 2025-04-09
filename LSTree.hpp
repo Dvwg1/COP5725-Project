@@ -27,11 +27,16 @@ class ls_tree {
     int getRootPage()  { return root_page; }
     page_handler& getHandler()  { return handler; }
 
+    b_plus_tree memoryTree;
+    bool isMemoryTree = false; 
+
     void addTree(const string& baseDir);
     b_plus_tree& getTree(size_t index);
     size_t size() const; 
     //void addToTree(b_plus_tree& btree, int key, const Record& rec);
     void addToTree(const std::string& treeName, int key, const Record& rec); 
+
+    void insertMemoryTree();
     
 
 

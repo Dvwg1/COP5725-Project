@@ -10,6 +10,7 @@
 #include <string>
 #include <queue>
 #include <chrono>
+#include <cstdlib>
 
 using namespace std; 
 
@@ -77,7 +78,7 @@ int main() {
     string numRecord;
     cout << "Enter the number of records in this file: ";
     getline(cin, numRecord);
-    int numRecords = stoi(numRecord) / 2; 
+    int numRecords = stoi(numRecord) / 4; //divided by 4 to start since each num has 50% chance to be entered in LSTree
 
     //starts the timer, at this point the file should have been found
 	auto start = chrono::high_resolution_clock::now();
@@ -88,17 +89,20 @@ int main() {
     string line;
 
     int counter = 0;
-    int directoryCounter = 1;  
-    string directroy = "ls_tree_pages/btree1"; 
+    int directoryCounter = 1;
+    const char LSTreeDir[20] = "ls_tree_pages/btree"; 
+    string directroy = LSTreeDir + to_string(directoryCounter); 
     string strDCounter; 
     getline(file, line); // Skip header
 
-    //for (int i = 0; i < numRecords; i++)
-    //{
-        /* code */
     
     
     while (getline(file, line)) {
+
+        //check random 1/2 chance that record is in tree
+        int randomNum = rand() % 2;
+        if (randomNum == 1) {continue; }
+
         stringstream ss(line);
         string idStr, latStr, lonStr, tsStr, hStr;
 
@@ -116,31 +120,28 @@ int main() {
                 Record r;
                 strncpy(r.id, idStr.c_str(), sizeof(r.id));
                 r.id[sizeof(r.id) - 1] = '\0';
-                cout << "test1" << endl;
+                //cout << "test1" << endl;
                 r.lon = stof(latStr);
                 r.lat = stof(lonStr);
                 strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
                 r.timestamp[sizeof(r.timestamp) - 1] = '\0';
                 r.hilbert = stoi(hStr);
 
-                
-                //cout << "test1" << endl;
                 if (counter > numRecords) {
                     //new to create a new btree
                     numRecords = numRecords / 2;
-                    cout << "numRecords: "<< numRecords << endl; 
+                    //cout << "numRecords: "<< numRecords << endl; 
                     counter = 0; 
                     directoryCounter++;
                     strDCounter = to_string(directoryCounter);
-                    directroy.back() = strDCounter[0]; 
-                    //return 0;
-                } else {
-                    tree.addToTree(directroy, r.hilbert, r);
-                }
-                if (numRecords <= 10) {
+                    directroy = LSTreeDir + strDCounter; 
+
+                } 
+                if (numRecords <= 256000) { //will be 256k 
                     cout << "numRecords: "<< numRecords << endl;
                     break; 
                 }
+                tree.addToTree(directroy, r.hilbert, r);
                 
                 
             } 
@@ -151,8 +152,13 @@ int main() {
                 cerr << "  Error: " << e.what() << "\\n";
             }
         } 
-    //}
     }
+
+
+    // auto smallest = tree.levels.rbegin(); 
+    // b_plus_tree memTree = smallest->second; 
+    tree.insertMemoryTree();
+
 
 
     file.close();

@@ -20,7 +20,7 @@ const string LS_ROOT_META_FILE = "ls_tree_pages/root.meta";
 
 
 //constructor
-ls_tree::ls_tree(const string& dir) : handler(dir) {
+ls_tree::ls_tree(const string& dir) : memoryTree("inMemoryTree"), handler(dir) {
 
     fs::create_directory(dir);
 }
@@ -64,7 +64,7 @@ void ls_tree::addToTree(const string& treeName, int key, const Record& rec) {
 
 
 void ls_tree::addTree(const string& treeName) {
-    std::string treePath = baseDirectory + "/" + treeName;
+    string treePath = baseDirectory + "/" + treeName;
     if (!fs::exists(treePath)) {
         fs::create_directory(treePath);
     }
@@ -84,3 +84,36 @@ void ls_tree::saveRoot() {
     //reads in the value
     out << root_page;
 } */
+
+void ls_tree::insertMemoryTree() {
+    //check if levels is empty before getting last tree
+    if (!levels.empty()) {
+        memoryTree = levels.rbegin()->second; 
+        isMemoryTree = true;
+        cout << "checking memoryTree : " << endl;
+
+        //cout << "memoryTree root page: " << memoryTree.getRootPage() << endl; 
+        
+        vector<Record> rs = memoryTree.rangeQuery(32876, 100000);
+
+        cout << "Results from inMemoryTree:\n";
+        for (const Record& rec : rs) {
+            cout << "ID: " << rec.id
+                    << ", Lat: " << rec.lat
+                    << ", Lon: " << rec.lon
+                    << ", Time: " << rec.timestamp
+                    << ", Hilbert: " << rec.hilbert
+                    << "\n";
+        }
+
+
+
+        
+        // cout << leaf->records[i].id << endl;
+        // cout << leaf->records[i].lat << endl;
+        // cout << leaf->records[i].lon << endl;
+        // cout << leaf->records[i].timestamp << endl; 
+        
+    }
+}
+
