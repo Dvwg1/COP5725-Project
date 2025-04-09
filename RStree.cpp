@@ -4,11 +4,16 @@
 References:
 https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 
+https://www.mikeash.com/pyblog/friday-qa-2012-07-27-lets-build-tagged-pointers.html
+
 https://github.com/andylamp/BPlusTree
 https://github.com/myui/btree4j
 
 Heavily modified implementation, with the first step being to transform a disk based 
 r-tree into a memory based RS-tree, before modifying it to store leaves on disk.
+
+the 2nd served as the inspiration for how the pointer to id and id to pointer system works,
+through the use of tagged pointers
 
 The last two links are used as inspiration for the disk based implementation of the B+ tree.
 
@@ -42,7 +47,6 @@ const string ROOT_META_FILE = "tree_pages/root.meta";
 
 
 /*page_handler functions*/
-/*
 //constructor, calls the cre
 page_handler::page_handler(const string& dir) : directory(dir),next_page_id(0) {
 
@@ -114,7 +118,7 @@ string page_handler::getPagePath(int pageID) {
     //returns the page needed in directory format
     return directory + "/page_" + to_string(pageID) + ".bin";
 }
-*/
+
 /*end of page handler functions*/
 
 /*B Plus Tree function declaration*/
@@ -150,9 +154,98 @@ void b_plus_tree::saveRoot() {
 }
 */
 
-
-b_plus_tree::b_plus_tree() {
+//full memory constructor
+// perhaps the sketchiest patch I have ever done here at the great FSU
+// with a non-sense directory for handler
+/*b_plus_tree::b_plus_tree() : handler("dont_open_nothing_inside/"){
     root = nullptr;
+}*/
+
+//hybrid constructor
+b_plus_tree::b_plus_tree(const string& dir) : handler(dir) {
+
+    //creates the specified directory, from directory loads in next page ID
+    int leaf_page_id = handler.pageIncrementer();
+
+    //buffer initialized safely
+    char buffer[PAGE_SIZE] = {};
+
+    //buffer intialized as disk leaf node
+    disk_leaf_node* disk_leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+    
+    //initialize all fields to default
+    * disk_leaf = disk_leaf_node{};
+    disk_leaf->is_leaf = 1;
+    disk_leaf->record_num =0;
+    //initialized to be linked to nothing, since would be first record
+    disk_leaf->next_leaf_page = INVALID_PAGE;
+
+    //write node to disk
+    handler.writePage(leaf_page_id, buffer, sizeof(disk_leaf_node));
+
+    //root created as internal node in memory
+    internal_node * root_internal = new internal_node();
+
+    //initialize memory values
+    root_internal->is_leaf = 0;
+    root_internal->numKeys = 0;
+
+    //root made to point to leaf using the translator
+    root_internal->children[0] = pageIDToPointer(leaf_page_id);
+
+    //tree root set to newly created root
+    root = root_internal;
+
+}
+
+//used to create a leaf node
+int b_plus_tree::createDiskLeaf() {
+
+    /* //debugging code
+    static int leaf_page_count = 0;
+    ++leaf_page_count;
+    cout << "created leaf page #" << leaf_page_count << endl;
+    */
+
+    //gets the page id of what next page is supposed to be
+    int pid = handler.pageIncrementer();
+
+    //buffer initialized to 0 to prevent memory leaks
+    char buffer[PAGE_SIZE] = {0};
+
+    //initialize node in buffer
+    disk_leaf_node* node = reinterpret_cast<disk_leaf_node*>(buffer);
+    *node = disk_leaf_node{};
+
+    //calls writePage to create a new node with the right size, buffer, and pid
+    handler.writePage(pid, buffer, sizeof(disk_leaf_node));
+
+    //returns id for linking
+    return pid;
+
+}
+
+
+//given a page_id, converts it to an address, and then
+//uses OR on it with 0x8.. , in order to produce a 
+//basic encoded address, that will be used as pointer to the leaf
+inline void* b_plus_tree::pageIDToPointer(int id) const {
+    
+    return reinterpret_cast<void*>((static_cast<uintptr_t>(id) | 0x8000000000000000));
+}
+
+//given a pointer, will remove the 0x8.. using 0x7FFF.., and translates the
+//encoded address value back to a page_id, which will 
+//correspond to a leaf_node 
+inline int b_plus_tree::pointerToPageID(void* ptr) const {
+
+    return static_cast<int>(reinterpret_cast<uintptr_t>(ptr) & 0x7FFFFFFFFFFFFFFF);
+}
+
+//verfication
+inline bool b_plus_tree::isPointerValid(void* ptr) const {
+
+    return (reinterpret_cast<uintptr_t>(ptr) & 0x8000000000000000) != 0;
 }
 
 //used to insert new records into nodes 
@@ -161,9 +254,21 @@ void b_plus_tree::insert(int key, const Record& rec) {
     //if no root, initialize one
     if (!root) {
         
-        //set root to leaf_node
-        root = new leaf_node();
-        reinterpret_cast<leaf_node*>(root)->is_leaf = 1;
+        //set root to mem_leaf_node
+        /*root = new mem_leaf_node();
+        reinterpret_cast<mem_leaf_node*>(root)->is_leaf = 1;*/
+
+        //create a disk leaf page
+        int page_id = createDiskLeaf();
+
+        //create root as an internal memory node
+        internal_node* new_root = new internal_node();
+        new_root->is_leaf = 0;
+        new_root->numKeys = 0;
+        new_root->children[0] = pageIDToPointer(page_id);
+
+        root = new_root;
+    
     }
 
     //promoted key will move up upon update
@@ -194,13 +299,139 @@ void b_plus_tree::insert(int key, const Record& rec) {
 }
 
 //used for record insertion, splitting, and promoted key upward propagation
+//hybridized version
+
 void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child) {
 
+    //checks the node to see if it translates to a tagged pointer
+    if (isPointerValid(node)) {
+
+        //loads in the page_id from the pointer
+        int page_id = pointerToPageID(node);
+
+        //buffer size allocation
+        char buffer[PAGE_SIZE];
+
+        //read in values from page
+        handler.readPage(page_id, buffer);
+
+        //creates an instance of disk node
+        disk_leaf_node* leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+
+        //if node has capacity for more records
+        if (leaf->record_num < MAX_LEAF_RECORDS) {
+
+            //inserts while keeping the Hilbert sort order
+            int i = leaf->record_num - 1;
+            while (i >= 0 && leaf->records[i].hilbert > key) {
+
+                leaf->records[i + 1] = leaf->records[i];
+                i--;
+            }
+            leaf->records[i + 1] = rec;
+            leaf->record_num++;
+
+            //writes records back to the leaf node
+            handler.writePage(page_id, buffer, sizeof(disk_leaf_node));
+
+            //sets promote_key to -1
+            promoted_key = -1;
+            new_child = nullptr;
+
+        }
+
+        //if node at eh max capacity
+        else{
+
+            //creates instance of new id
+            int new_page_id;
+
+            //calls the split function to split the records
+            splitDiskLeaf(*leaf, rec, promoted_key, new_page_id);
+
+            //writes record
+            handler.writePage(page_id, buffer, sizeof(disk_leaf_node));
+
+            //gets new pointer value, from the page
+            new_child = pageIDToPointer(new_page_id);
+
+        }
+
+        return;
+
+    }
+
+    //internal node condition
+    else {
+
+        //creates internal node using buffer
+        internal_node* internal = reinterpret_cast<internal_node*>(node);
+
+        //used to main key order
+        int i = 0;
+        while (i < internal->numKeys && key > internal->keys[i]) i++;
+        void* child = internal->children[i];
+
+        //temporary pormoted key and new child to be inserted recursively
+        int temp_key = -1;
+        void* temp_child = nullptr;
+        insertRecursive(child, key, rec, temp_key, temp_child);
+
+        //if the new child page is valid
+        if (temp_child) {
+
+            //if the internal node has enough room for a child
+            if (internal->numKeys < MAX_INTERNAL_KEYS) {
+
+                //assignments
+                for (int j = internal->numKeys; j > i; --j) {
+                    internal->keys[j] = internal->keys[j - 1];
+                    internal->children[j + 1] = internal->children[j];
+                }
+
+                //updates node information
+                internal->keys[i] = temp_key;
+                internal->children[i + 1] = temp_child;
+                internal->numKeys++;
+
+                //updates promoted key and new child page accordingly
+                promoted_key = -1;
+                new_child = nullptr;
+
+            } 
+            
+            //if internal node can have no more children
+            else {
+
+                //calls the function to split the internal node, and create new page internal
+                splitInternal(internal, temp_key, temp_child, promoted_key, new_child);
+            }
+
+        } 
+        
+        //if no other conditions are met, set values to invalid
+        else {
+            promoted_key = -1;
+            new_child = nullptr;
+        }
+    }
+
+}
+
+
+
+//used for record insertion, splitting, and promoted key upward propagation
+/*
+void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child) {
+
+    //determine node type
+    bool is_mem_leaf = reinterpret_cast<mem_leaf_node*>(node)->is_leaf;
+
     //leaf node condition
-    if (reinterpret_cast<leaf_node*>(node)->is_leaf) {
+    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
         //create a leaf node pointer instance
-        leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
         //if the leaf node/page has enough room for a record
         if (leaf->record_num < MAX_LEAF_RECORDS) {
@@ -285,9 +516,62 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
         }
     }
 }
+*/
+
+//disk version of leaf split, based on logic from r-tree
+void b_plus_tree::splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, int & new_page_id){
+
+
+    //creates temporary array to hold all node records in addition to one more 
+    Record temp[MAX_LEAF_RECORDS + 1];
+    int i = 0, j = 0;
+
+    //going off of the hilbert value, ensure record inserted in correct sorted order
+    while (i < old_node.record_num && old_node.records[i].hilbert < record.hilbert)
+        temp[j++] = old_node.records[i++];
+
+    temp[j++] = record;
+
+    while (i < old_node.record_num)
+        temp[j++] = old_node.records[i++];
+
+    //total to indicate record total, which is used to determine how many records to split left
+    int record_total= j;
+    int split_index = record_total/ 2;
+
+    //fills in the old node 
+    old_node.record_num = split_index;
+    memcpy(old_node.records, temp, split_index * sizeof(Record));
+
+    //in a memory safe way, creates and initializes new node
+    char buffer[PAGE_SIZE] = {0};
+    disk_leaf_node* new_node = reinterpret_cast<disk_leaf_node*>(buffer);
+    new_node->record_num = record_total- split_index;
+    memcpy(new_node->records, temp + split_index, new_node->record_num * sizeof(Record));
+
+    //sets leaf condition to 1 and relinks to old node
+    new_node->is_leaf = 1;
+    new_node->next_leaf_page = old_node.next_leaf_page;
+
+    //creates and relinks new page id
+    new_page_id = createDiskLeaf(); 
+    old_node.next_leaf_page = new_page_id;
+
+    //creates a page with the new node information
+    handler.writePage(new_page_id, buffer, sizeof(disk_leaf_node));
+
+    //promotes first key 
+    promoted_key = new_node->records[0].hilbert;
+
+    /* //debugging
+    cout << "Splitting leaf. Promoted key: " << promoted_key
+              << ", New leaf page ID: " << new_page_id << endl;
+    */
+}
+
 
 //used when leaf node needs to be split
-void b_plus_tree::splitLeaf(leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node_ptr) {
+void b_plus_tree::splitLeaf(mem_leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node_ptr) {
 
     //creates temporary array to hold all node records in addition to one more
     Record temp[MAX_LEAF_RECORDS + 1];
@@ -313,7 +597,7 @@ void b_plus_tree::splitLeaf(leaf_node* old_node, const Record& record, int& prom
         old_node->records[i] = temp[i];
 
     //creates and initiazlies the new node, pulling from temp using the for loop
-    leaf_node* new_node = new leaf_node();
+    mem_leaf_node* new_node = new mem_leaf_node();
     new_node->record_num = j - mid;
     for (i = 0; i < new_node->record_num; ++i)
         new_node->records[i] = temp[mid + i];
@@ -405,7 +689,7 @@ std::vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     void* node = root;
 
     //loops through all possible leaves
-    while (!reinterpret_cast<leaf_node*>(node)->is_leaf) {
+    while (!reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
         //create instance of node
         internal_node* internal = reinterpret_cast<internal_node*>(node);
@@ -422,7 +706,7 @@ std::vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     }
 
     //create instance of leaf node
-    leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+    mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
     //at this point, should be a leaf
     while (leaf) {
@@ -458,10 +742,10 @@ void b_plus_tree::remove(int key) {
 void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
 
     //leaf node condition
-    if (reinterpret_cast<leaf_node*>(node)->is_leaf) {
+    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
 
         //creates a leaf node
-        leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
 
         //initial value
         int i = 0;
@@ -544,30 +828,27 @@ void b_plus_tree::printTree() {
         void* node = q.front(); 
         q.pop();
 
-        //leaf node condition
-        if (reinterpret_cast<leaf_node*>(node)->is_leaf) {
+        //leaf condition, going oof of the tagged pointer logic
+        if (isPointerValid(node)) {
 
-            //create leaf node instance of the node
-            leaf_node* leaf = reinterpret_cast<leaf_node*>(node);
+            //gets the page_id
+            int page_id = pointerToPageID(node);
 
-            //print that it is, in fact, a leaf (wow)
-            cout << "Leaf: ";
-            
-            //prints all of its records
-            for (int i = 0; i < leaf->record_num; ++i){
+            //buffer creation
+            char buffer[PAGE_SIZE];
+            handler.readPage(page_id, buffer);
+            disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+
+            //print all of the hilbert values and id's from the records
+            cout << "Disk Leaf [Page " << page_id << "]: ";
+            for (int i =0; i < leaf->record_num; i++) {
 
                 cout << leaf->records[i].hilbert << " ";
-                /*
-                cout << leaf->records[i].id << endl;
-                cout << leaf->records[i].lat << endl;
-                cout << leaf->records[i].lon << endl;
-                cout << leaf->records[i].timestamp << endl; 
-                */
             }
-
             cout << "\n";
-        } 
-        
+
+        }
+
         //internal node condition
         else {
 

@@ -30,7 +30,7 @@ using namespace std;
 //Note: pages represent a node
 
 //defines the Page size to be 8000 bytes, as Wang et al. have their page sizes set to 8 KB
-//constexpr size_t PAGE_SIZE = 8000;
+constexpr size_t PAGE_SIZE = 8000;
 
 //Arbritary amount of records to be included in a node, set to 100 to ensure no overflow
 constexpr int MAX_LEAF_RECORDS = 100;
@@ -42,7 +42,7 @@ constexpr int MAX_INTERNAL_KEYS = 15;
 constexpr int INVALID_PAGE = -1;
 
 //defines external variable name for needed root file 
-//extern const string ROOT_META_FILE;
+extern const string ROOT_META_FILE;
 
 //used for packing alignment - memory issues without
 #pragma pack(push, 1)
@@ -69,11 +69,8 @@ struct Record {
 //dynamic record size assignment used in testing, we kept anyways
 constexpr size_t RECORD_SIZE = sizeof(Record);  
 
-struct leaf_node;
-struct internal_node;
-
-//leaf node, stores records
-struct leaf_node {
+//leaf node, stores records IN MEMORY
+struct mem_leaf_node {
 
     //bool: 1 for leaf
     int is_leaf = 1;
@@ -84,8 +81,22 @@ struct leaf_node {
     //max amount of records per leaf node
     Record records[MAX_LEAF_RECORDS];
 
-    //initialize leaf_node in nullptr
-    leaf_node* next_leaf = nullptr;
+    //initialize mem_leaf_node in nullptr
+    mem_leaf_node* next_leaf = nullptr;
+};
+
+//leaf node, stores records ON DISK
+struct disk_leaf_node {
+
+    //bool: 1 for leaf
+    int is_leaf = 1;
+
+    int record_num = 0;
+    int next_leaf_page = INVALID_PAGE;
+
+    //max amount of records per leaf node
+    Record records[MAX_LEAF_RECORDS];
+
 };
 
 //internal node, stores key (used as MBB) and children nodes
@@ -100,8 +111,9 @@ struct internal_node {
     void* children[MAX_INTERNAL_KEYS + 1];
 };
 
-/*
+
 //class used to handle pages for inserts, writes, reads. base of I/O functionality
+//curcial for creating, using, and erasing leaf nodes on disk
 class page_handler {
 
 public:
@@ -126,16 +138,19 @@ private:
 
     void loadNextPageID();
 };
-*/
+
 
 //our B+ tree class, containing its needed functions to be created and operated upon
 class b_plus_tree {
 public:
 
-    //constructor
+    //full memory constructor
     b_plus_tree();
 
-    //same as in r-tre, but modified for memory applications
+    //hybridized constructor
+    b_plus_tree(const string & directory_path);
+
+    //same as in r-tree, but modified for memory applications
     void insert(int key, const Record& rec);
     void remove(int key);
     vector<Record> rangeQuery(int low, int high);
@@ -144,8 +159,8 @@ public:
     void printTree();
 
     //used to get root and handler info for main
-    //int getRootPage()  { return root_page; }
-    //page_handler& getHandler()  { return handler; }
+    int getRootPage()  { return root_page; }
+    page_handler& getHandler()  { return handler; }
     
     
 
@@ -153,26 +168,42 @@ public:
 
 private:
 
-    //b plus tree will have its own instance of handler
-    //page_handler handler;
+    /*translation helper functions*/
 
+    //given pointer, returns corresponding page id
+    inline int pointerToPageID(void* ptr) const;
+
+    //given page id, returns corresponding pointer
+    inline void* pageIDToPointer(int id) const;
+
+    //verifier of pointer
+    inline bool isPointerValid(void * ptr) const;
+
+    /*memory related functionality*/
     //stores the root page id 
-    void * root = nullptr;
-
-    //further explanation seen in cpp
-    //int createLeaf();
-    //int createInternal();
-
-    //void saveRoot();
+    void * root;
     void insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child);
 
     //modified to be memory based
-    void splitLeaf(leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node);
+    void splitLeaf(mem_leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node);
     void splitInternal(internal_node* old_node, int insert_key, void* insert_child, int& promoted_key, void*& new_node);
 
-    
     void removeRecursive(void * node, int key, bool& merged);
-    //void printDotNode(ofstream& out, int pageID);
+
+    
+    /*disk related functionality*/
+    //b plus tree will have its own instance of handler
+    page_handler handler;
+
+    //stores the root page id on disk
+    int root_page;
+
+    int createDiskLeaf();
+
+    void splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, int & new_page_id);
+
+    void saveRoot();
+
     
 };
 

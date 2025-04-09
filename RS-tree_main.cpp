@@ -34,7 +34,7 @@ int main() {
 	auto start = chrono::high_resolution_clock::now();
 
     //initialize memory-based RS-tree
-    b_plus_tree tree;
+    b_plus_tree tree("tree_pages");
 
     string line;
     getline(file, line);
@@ -81,7 +81,22 @@ int main() {
 
     tree.printTree();
 
- 
+    //official goobab function tests
+    /*
+    tree.remove(1364);
+
+    vector<Record> results = tree.rangeQuery(1300, 6000);
+
+
+    for (const Record& r : results) {
+
+        cout << "  [" << r.hilbert << "] "
+        << r.id << " | "
+        << "(" << r.lon << ", " << r.lat << ") | "
+        << r.timestamp << "\n";
+
+    }
+    */
 
     return 0;
 }
