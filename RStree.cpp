@@ -688,42 +688,52 @@ std::vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     //initializes starting node to root
     void* node = root;
 
-    //loops through all possible leaves
-    while (!reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
+    //takes in non-leaf, ie internal nodes 
+    while (!isPointerValid(node)) {
 
-        //create instance of node
+        //create internal node instance
         internal_node* internal = reinterpret_cast<internal_node*>(node);
 
-        //initialized iteration value
+        //gets all children
         int i = 0;
-
-        //goes through the interal nodes to search for the right child
-        while (i < internal->numKeys && low > internal->keys[i]) 
+        while (i < internal->numKeys && low > internal->keys[i])
             i++;
-
-        //sets node to the correct child node
+        
+        //add children to the node children array
         node = internal->children[i];
     }
 
-    //create instance of leaf node
-    mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
+    //if out of while loop, can assume node is a leaf and extract its page_id
+    int page_id = pointerToPageID(node);
 
-    //at this point, should be a leaf
-    while (leaf) {
+    //loops through all internals until -1
+    while (page_id != INVALID_PAGE) {
 
-        //records all of the record values
+        //buffer size creation
+        char buffer[PAGE_SIZE];
+
+        //reads in node, create leaf node
+        handler.readPage(page_id, buffer);
+        disk_leaf_node* leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+
+
+        //goes through records
         for (int i = 0; i < leaf->record_num; ++i) {
+
+            //puts or returns record in questio
             int key = leaf->records[i].hilbert;
-            if (key > high) return result;
-            if (key >= low) result.push_back(leaf->records[i]);
+            if (key > high) 
+                return result;
+            if (key >= low) 
+                result.push_back(leaf->records[i]);
         }
 
-        //goes to next leaf
-        leaf = leaf->next_leaf;
+        //begins next leaf page
+        page_id = leaf->next_leaf_page; 
     }
 
-    //returns vector of records
     return result;
+
 }
 
 //calls the remove recursive function, while setting merged status to false
@@ -741,37 +751,58 @@ void b_plus_tree::remove(int key) {
 //main remove functionality, as it is down recursively
 void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
 
-    //leaf node condition
-    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
+    //if pointer is to a leaf, leaf node condition
+    if (isPointerValid(node)) {
 
-        //creates a leaf node
-        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
+        //gets the page id from the leaf
+        int page_id = pointerToPageID(node);
 
-        //initial value
-        int i = 0;
+        cout << "Attempting to remove " << key << " from page " << page_id << endl;
+
+        //creates buffer
+        char buffer[PAGE_SIZE];
+        
+        //reads in information from leaf
+        handler.readPage(page_id, buffer);
+
+        //create instance of leaf node
+        disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
 
         //find the index of the key that is to be removed
-        while (i < leaf->record_num && leaf->records[i].hilbert < key) 
+        int i = 0;
+        while (i < leaf->record_num && leaf->records[i].hilbert < key)
             i++;
-        
+
         //if the key exists, removed by shifting later records to the left
         if (i < leaf->record_num && leaf->records[i].hilbert == key) {
 
-            for (int j = i; j < leaf->record_num - 1; ++j)
+            //shift records left to remove
+            for (int j = i; j < leaf->record_num - 1; j++)
                 leaf->records[j] = leaf->records[j + 1];
-
-            //decrease the amount
+            
             leaf->record_num--;
+
+            //writes page back to disk
+            handler.writePage(page_id, buffer, sizeof(disk_leaf_node));
+
         }
+
+         //debug
+         cout << "Removed record with hilbert: " << key << " from page " << page_id << endl;
+
 
         //deleting a leaf node should not trigger a merge
         merged = false;
+        return;
 
+       
+        
     } 
     
 
     //internal node condition
     else {
+
 
         //create an internal node
         internal_node* internal = reinterpret_cast<internal_node*>(node);
@@ -870,51 +901,3 @@ void b_plus_tree::printTree() {
         }
     }
 }
-
-/*
-void b_plus_tree::exportToDot(const string& filename) {
-    ofstream out(filename);
-    out << "digraph b_plus_tree {\nnode [shape=record];\n";
-    queue<int> q;
-    q.push(root_page);
-    while (!q.empty()) {
-        int pageID = q.front(); q.pop();
-        printDotNode(out, pageID);
-        char buffer[PAGE_SIZE];
-        handler.readPage(pageID, buffer);
-        int is_leaf;
-        memcpy(&is_leaf, buffer, sizeof(int));
-        if (!is_leaf) {
-            internal_node* node = reinterpret_cast<internal_node*>(buffer);
-            for (int i = 0; i <= node->numKeys; ++i) {
-                out << "\"" << pageID << "\" -> \"" << node->children[i] << "\";\n";
-                q.push(node->children[i]);
-            }
-        }
-    }
-    out << "}\n";
-    out.close();
-}
-
-void b_plus_tree::printDotNode(ofstream& out, int pageID) {
-    char buffer[PAGE_SIZE];
-    handler.readPage(pageID, buffer);
-    int is_leaf;
-    memcpy(&is_leaf, buffer, sizeof(int));
-    out << "\"" << pageID << "\" [label=\"";
-    if (is_leaf) {
-        leaf_node* node = reinterpret_cast<leaf_node*>(buffer);
-        for (int i = 0; i < node->record_num; ++i) {
-            out << node->records[i].hilbert;
-            if (i != node->record_num - 1) out << "|";
-        }
-    } else {
-        internal_node* node = reinterpret_cast<internal_node*>(buffer);
-        for (int i = 0; i < node->numKeys; ++i) {
-            out << "<f" << i << ">" << node->keys[i];
-            if (i != node->numKeys - 1) out << "|";
-        }
-    }
-    out << "\"];\n";
-}
-*/

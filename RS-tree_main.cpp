@@ -82,11 +82,10 @@ int main() {
     tree.printTree();
 
     //official goobab function tests
-    /*
     tree.remove(1364);
+    
 
-    vector<Record> results = tree.rangeQuery(1300, 6000);
-
+    auto results= tree.rangeQuery(1300, 6000);
 
     for (const Record& r : results) {
 
@@ -96,7 +95,7 @@ int main() {
         << r.timestamp << "\n";
 
     }
-    */
+    
 
     return 0;
 }
