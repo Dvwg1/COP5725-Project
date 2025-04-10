@@ -43,7 +43,7 @@ using namespace std;
 namespace fs = filesystem;
 
 //root.meta is used for page directory organization
-const string ROOT_META_FILE = "tree_pages/root.meta";
+const string ROOT_META_FILE = "RStree_pages/root.meta";
 
 
 /*page_handler functions*/
@@ -398,6 +398,7 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
                 promoted_key = -1;
                 new_child = nullptr;
 
+
             } 
             
             //if internal node can have no more children
@@ -417,8 +418,6 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
     }
 
 }
-
-
 
 //used for record insertion, splitting, and promoted key upward propagation
 /*
@@ -837,6 +836,82 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
     }
 }
 
+
+/*sampling implementation*/
+
+//public function to get the number of records in a node's subtree (children, grandchildren, etc)
+int b_plus_tree::getSubtreeRecordCount(void* node){
+
+    //empty tree error check
+    if (!root) {
+
+        cout << "Tree is empty.\n";
+        return 1;
+    }
+
+    //calls actual counter, and returns total counter
+    int total_records = recursiveNodeSubtreeCounter(node);
+
+    return total_records;
+    
+    
+}
+
+//recursively gets the count of all records in a node's subtree
+int b_plus_tree::recursiveNodeSubtreeCounter(void* node) {
+
+    //get direct count if leaf condition
+    if (isPointerValid(node)) {
+
+        //gets the page id, allocates buffer, reads from page
+        int page_id = pointerToPageID(node);
+        char buffer[PAGE_SIZE];
+        handler.readPage(page_id, buffer);
+
+        //creates instance of disk leaf to return record_num
+        disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+        return leaf->record_num;
+    }
+
+    //internal condition, creates instance from node
+    internal_node * internal = reinterpret_cast<internal_node*>(node);
+
+    int total_records =0;
+
+    //loops through all of its children to get count
+    for (int i = 0; i <= internal->numKeys; i++) {
+
+        total_records += recursiveNodeSubtreeCounter(internal->children[i]);
+    }
+
+   
+    return total_records;
+
+}
+
+
+//when called in main, rebuilds the samples for all eligible nodes in the tree from root
+void b_plus_tree::reBuildAllSamples() {
+
+    //error checking
+    if (!root)
+        return;
+
+    //debug print statement
+    cout << "rebuilding all sample buffers..." << endl;
+
+    //calls recursive BuildSamples
+    int samples = BuildSamples(root);
+    
+}
+
+//recusrively samples for every internal node in the tree
+int b_plus_tree::BuildSamples(void * node) {
+
+    return 0;
+}
+
+
 //used to print the tree, more so for our error checking tbh
 void b_plus_tree::printTree() {
 
@@ -893,6 +968,10 @@ void b_plus_tree::printTree() {
             for (int i = 0; i < internal->numKeys; ++i)
                 cout << internal->keys[i] << " ";
 
+            int total_records = getSubtreeRecordCount(internal);
+
+            cout << "total records: " << total_records << endl;
+            
             cout << "\n";
 
             //prints all of its children
