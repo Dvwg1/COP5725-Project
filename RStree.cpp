@@ -6,6 +6,9 @@ https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 
 https://www.mikeash.com/pyblog/friday-qa-2012-07-27-lets-build-tagged-pointers.html
 
+https://stackoverflow.com/questions/33131800/c-generating-random-numbers-in-a-loop-using-default-random-engine
+https://en.cppreference.com/w/cpp/numeric/random/binomial_distribution
+
 https://github.com/andylamp/BPlusTree
 https://github.com/myui/btree4j
 
@@ -38,12 +41,16 @@ The last two links are used as inspiration for the disk based implementation of 
 #include <algorithm>
 #include <cassert>
 
+//sampling
+#include <chrono>
+#include <random>
+
 using namespace std;
 
 namespace fs = filesystem;
 
 //root.meta is used for page directory organization
-const string ROOT_META_FILE = "tree_pages/root.meta";
+const string ROOT_META_FILE = "RStree_pages/root.meta";
 
 
 /*page_handler functions*/
@@ -398,6 +405,7 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
                 promoted_key = -1;
                 new_child = nullptr;
 
+
             } 
             
             //if internal node can have no more children
@@ -417,8 +425,6 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
     }
 
 }
-
-
 
 //used for record insertion, splitting, and promoted key upward propagation
 /*
@@ -688,42 +694,52 @@ std::vector<Record> b_plus_tree::rangeQuery(int low, int high) {
     //initializes starting node to root
     void* node = root;
 
-    //loops through all possible leaves
-    while (!reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
+    //takes in non-leaf, ie internal nodes 
+    while (!isPointerValid(node)) {
 
-        //create instance of node
+        //create internal node instance
         internal_node* internal = reinterpret_cast<internal_node*>(node);
 
-        //initialized iteration value
+        //gets all children
         int i = 0;
-
-        //goes through the interal nodes to search for the right child
-        while (i < internal->numKeys && low > internal->keys[i]) 
+        while (i < internal->numKeys && low > internal->keys[i])
             i++;
-
-        //sets node to the correct child node
+        
+        //add children to the node children array
         node = internal->children[i];
     }
 
-    //create instance of leaf node
-    mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
+    //if out of while loop, can assume node is a leaf and extract its page_id
+    int page_id = pointerToPageID(node);
 
-    //at this point, should be a leaf
-    while (leaf) {
+    //loops through all internals until -1
+    while (page_id != INVALID_PAGE) {
 
-        //records all of the record values
+        //buffer size creation
+        char buffer[PAGE_SIZE];
+
+        //reads in node, create leaf node
+        handler.readPage(page_id, buffer);
+        disk_leaf_node* leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+
+
+        //goes through records
         for (int i = 0; i < leaf->record_num; ++i) {
+
+            //puts or returns record in questio
             int key = leaf->records[i].hilbert;
-            if (key > high) return result;
-            if (key >= low) result.push_back(leaf->records[i]);
+            if (key > high) 
+                return result;
+            if (key >= low) 
+                result.push_back(leaf->records[i]);
         }
 
-        //goes to next leaf
-        leaf = leaf->next_leaf;
+        //begins next leaf page
+        page_id = leaf->next_leaf_page; 
     }
 
-    //returns vector of records
     return result;
+
 }
 
 //calls the remove recursive function, while setting merged status to false
@@ -741,37 +757,55 @@ void b_plus_tree::remove(int key) {
 //main remove functionality, as it is down recursively
 void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
 
-    //leaf node condition
-    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
+    //if pointer is to a leaf, leaf node condition
+    if (isPointerValid(node)) {
 
-        //creates a leaf node
-        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
+        //gets the page id from the leaf
+        int page_id = pointerToPageID(node);
 
-        //initial value
-        int i = 0;
+        cout << "Attempting to remove " << key << " from page " << page_id << endl;
+
+        //creates buffer
+        char buffer[PAGE_SIZE];
+        
+        //reads in information from leaf
+        handler.readPage(page_id, buffer);
+
+        //create instance of leaf node
+        disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
 
         //find the index of the key that is to be removed
-        while (i < leaf->record_num && leaf->records[i].hilbert < key) 
+        int i = 0;
+        while (i < leaf->record_num && leaf->records[i].hilbert < key)
             i++;
-        
+
         //if the key exists, removed by shifting later records to the left
         if (i < leaf->record_num && leaf->records[i].hilbert == key) {
 
-            for (int j = i; j < leaf->record_num - 1; ++j)
+            //shift records left to remove
+            for (int j = i; j < leaf->record_num - 1; j++)
                 leaf->records[j] = leaf->records[j + 1];
-
-            //decrease the amount
+            
             leaf->record_num--;
+
+            //writes page back to disk
+            handler.writePage(page_id, buffer, sizeof(disk_leaf_node));
+
         }
+
+         //debug
+         cout << "Removed record with hilbert: " << key << " from page " << page_id << endl;
+
 
         //deleting a leaf node should not trigger a merge
         merged = false;
-
+        return;
+     
     } 
     
-
     //internal node condition
     else {
+
 
         //create an internal node
         internal_node* internal = reinterpret_cast<internal_node*>(node);
@@ -805,6 +839,196 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
         merged = (internal->numKeys == 0);
     }
 }
+
+
+/*sampling implementation*/
+
+//public function to get the number of records in a node's subtree (children, grandchildren, etc)
+int b_plus_tree::getSubtreeRecordCount(void* node){
+
+    //empty tree error check
+    if (!root) {
+
+        cout << "Tree is empty.\n";
+        return 1;
+    }
+
+    //calls actual counter, and returns total counter
+    int total_records = recursiveNodeSubtreeCounter(node);
+
+    return total_records;
+    
+    
+}
+
+//recursively gets the count of all records in a node's subtree
+int b_plus_tree::recursiveNodeSubtreeCounter(void* node) {
+
+    //get direct count if leaf condition
+    if (isPointerValid(node)) {
+
+        //gets the page id, allocates buffer, reads from page
+        int page_id = pointerToPageID(node);
+        char buffer[PAGE_SIZE];
+        handler.readPage(page_id, buffer);
+
+        //creates instance of disk leaf to return record_num
+        disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+        return leaf->record_num;
+    }
+
+    //internal condition, creates instance from node
+    internal_node * internal = reinterpret_cast<internal_node*>(node);
+
+    int total_records =0;
+
+    //loops through all of its children to get count
+    for (int i = 0; i <= internal->numKeys; i++) {
+
+        total_records += recursiveNodeSubtreeCounter(internal->children[i]);
+    }
+
+   
+    return total_records;
+
+}
+
+
+//adapted from the pseudocode algorithm 2 provided by Wang et al., used to generate samples for internal nodes
+//takes in a node and a desired number (0 by default), and fills the samples for each node 
+vector<Record> b_plus_tree::BuildSamples(void* node, int d){
+
+    //lines 1-2
+    //leaf node condition
+    if (isPointerValid(node)){
+        
+        //gets the page id, allocates buffer, reads from page
+        int page_id = pointerToPageID(node);
+        char buffer[PAGE_SIZE];
+        handler.readPage(page_id, buffer);
+
+        //creates instance of disk leaf to return record_num
+        disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+
+        //creates vector to hold all of leaf records
+        vector<Record> records;
+
+        //populatres vector from leaf record
+        for (int i =0; i < leaf->record_num; i++){
+            //mfers call me the sandwich
+            records.push_back(leaf->records[i]);
+        }
+
+        //return random samples
+        return sampleWithReplacement(records, d);
+    }
+
+    //internal node condition, creates instance from provided node
+    internal_node* internal = reinterpret_cast<internal_node*>(node);
+
+    //lines 3-4
+    //checks amount of samples
+    if (internal->sample_count < SAMPLE_SIZE ) {
+
+        d = d + (2 * SAMPLE_SIZE) - internal->sample_count;
+    }
+
+    //line 5
+    //basically: S <- Ø
+    vector<Record> subtree_records;
+
+    //internal node condition
+    //WILL NEED ELIGIBILITY TEST ASP
+    //loops through all of its children to get count
+    //line 6
+    for (int i = 0; i <= internal->numKeys; i++) {
+
+        //get the child
+        void * child = internal->children[i];
+
+
+        //line 7
+        //subtract SAMPLE_SIZE from node's sample count to see how much is needed
+        int d0 = (SAMPLE_SIZE - internal->sample_count);
+
+        //line 8
+        //stores results of running BuildSamples recursively using internal and d0
+        vector<Record> temp_records = BuildSamples(child, d0);
+        //combine the two records
+        subtree_records.insert(subtree_records.end(), temp_records.begin(), temp_records.end());
+
+    }
+
+    //fills up sample_buffer with elements in subtree_records, while deleting those already inserts
+    //line 9
+    //while not really mentioned in the paper, to avoid deterministic biases, subtree_records are shuffled
+    //using a different random seed
+    static default_random_engine shuffle_seed(random_device{}());
+    shuffle(subtree_records.begin(), subtree_records.end(), shuffle_seed);
+    auto itr = subtree_records.begin();
+    while (itr != subtree_records.end() && internal->sample_count < SAMPLE_SIZE){
+
+        //inserts the record and erases it for subtree_records
+        internal->sample_buffer[internal->sample_count++] = *itr;
+        itr = subtree_records.erase(itr);  
+
+
+    }
+
+    //return the remaining values
+    //line 10
+    return subtree_records;
+}
+
+//used to build samples for all eligible nodes, starts at root, call when tree has been "built"
+void b_plus_tree::buildAllSamples(){
+
+    //print out (can remove)
+    cout << "Beginning to fill all eligible node buffers" << endl;
+
+    //default value
+    int d = 0;
+
+    //call the BuildSample function from root
+    BuildSamples(root,d);
+
+    //debugging
+    cout << "Buffer Sample filling complete!" << endl;
+}
+
+
+//created with inspiration from the description of sampling from Wang et al.
+//takes in records, returns d number of samples
+vector<Record> b_plus_tree::sampleWithReplacement(const vector<Record> & record, int d){
+
+    //will hold samples
+    vector<Record> samples;
+
+    //edge case for d=0, just returns no samples from empty vector
+    if (record.empty())
+        return samples;
+
+    //defines the default random engine used for random sampling, seeded with computer clock  
+    //references: https://stackoverflow.com/questions/33131800/c-generating-random-numbers-in-a-loop-using-default-random-engine
+    static default_random_engine rand_gen (chrono::steady_clock::now().time_since_epoch().count());
+
+    //uses predefined binomial distribution function
+    //references: https://en.cppreference.com/w/cpp/numeric/random/binomial_distribution
+    binomial_distribution<int> dist(record.size() -1, .5);
+
+    //loops through the passed in records, sampling at random and pushing into samples vector
+    //uses d as the constraint
+    for (int i = 0; i < d; i++ ){
+
+        int round = dist(rand_gen);
+        round = min(round, static_cast<int>((record.size() -1)));
+        samples.push_back(record[round]);
+
+    }
+
+    return samples;
+}
+
 
 //used to print the tree, more so for our error checking tbh
 void b_plus_tree::printTree() {
@@ -862,59 +1086,36 @@ void b_plus_tree::printTree() {
             for (int i = 0; i < internal->numKeys; ++i)
                 cout << internal->keys[i] << " ";
 
+            int total_records = getSubtreeRecordCount(internal);
+
+            cout << "total records: " << total_records << endl;
+
+            //print sample buffer (if exists)
+            if (internal->sample_count > 0) {
+                cout << "  Sample Buffer (" << internal->sample_count << "):\n";
+
+                for (int i = 0; i < internal->sample_count; ++i) {
+                    const Record& r = internal->sample_buffer[i];
+                    cout << "    [" << r.hilbert << "] " << r.id
+                        << " | (" << r.lon << ", " << r.lat << ")"
+                        << " | " << r.timestamp << "\n";
+                }
+            }   
+
+            else 
+            {
+                cout << "  (no sample buffer)\n";
+            }
+
+
+
             cout << "\n";
 
             //prints all of its children
             for (int i = 0; i <= internal->numKeys; ++i)
                 q.push(internal->children[i]);
-        }
-    }
-}
 
-/*
-void b_plus_tree::exportToDot(const string& filename) {
-    ofstream out(filename);
-    out << "digraph b_plus_tree {\nnode [shape=record];\n";
-    queue<int> q;
-    q.push(root_page);
-    while (!q.empty()) {
-        int pageID = q.front(); q.pop();
-        printDotNode(out, pageID);
-        char buffer[PAGE_SIZE];
-        handler.readPage(pageID, buffer);
-        int is_leaf;
-        memcpy(&is_leaf, buffer, sizeof(int));
-        if (!is_leaf) {
-            internal_node* node = reinterpret_cast<internal_node*>(buffer);
-            for (int i = 0; i <= node->numKeys; ++i) {
-                out << "\"" << pageID << "\" -> \"" << node->children[i] << "\";\n";
-                q.push(node->children[i]);
-            }
-        }
-    }
-    out << "}\n";
-    out.close();
-}
 
-void b_plus_tree::printDotNode(ofstream& out, int pageID) {
-    char buffer[PAGE_SIZE];
-    handler.readPage(pageID, buffer);
-    int is_leaf;
-    memcpy(&is_leaf, buffer, sizeof(int));
-    out << "\"" << pageID << "\" [label=\"";
-    if (is_leaf) {
-        leaf_node* node = reinterpret_cast<leaf_node*>(buffer);
-        for (int i = 0; i < node->record_num; ++i) {
-            out << node->records[i].hilbert;
-            if (i != node->record_num - 1) out << "|";
-        }
-    } else {
-        internal_node* node = reinterpret_cast<internal_node*>(buffer);
-        for (int i = 0; i < node->numKeys; ++i) {
-            out << "<f" << i << ">" << node->keys[i];
-            if (i != node->numKeys - 1) out << "|";
         }
     }
-    out << "\"];\n";
 }
-*/

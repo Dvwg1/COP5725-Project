@@ -131,6 +131,7 @@ int main() {
     print_children(tree);
 
     tree.remove(1364);
+    tree.remove(5740);
 
 
     tree.exportToDot("tree.dot");

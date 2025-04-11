@@ -29,6 +29,9 @@ using namespace std;
 
 //Note: pages represent a node
 
+//sample buffer size. Testing: 16. Default: 256. Experimentals: 16, 256. 4096.
+constexpr int SAMPLE_SIZE = 16;
+
 //defines the Page size to be 8000 bytes, as Wang et al. have their page sizes set to 8 KB
 constexpr size_t PAGE_SIZE = 8000;
 
@@ -109,6 +112,17 @@ struct internal_node {
     //children and keys
     int keys[MAX_INTERNAL_KEYS];
     void* children[MAX_INTERNAL_KEYS + 1];
+
+    //sample buffer, stores Records in an array
+    //its size can be up to 2s to account for merges, but can not have more than s records
+    Record sample_buffer[2 * SAMPLE_SIZE];
+
+    //determines if can have its sample_buffer filled or not
+    bool sample_buffer_allowed = true;
+
+    //count of sampled records
+    int sample_count = 0;
+
 };
 
 
@@ -147,7 +161,8 @@ public:
     //full memory constructor
     b_plus_tree();
 
-    //hybridized constructor
+    //hybridized constructor - ie the one in use
+    //our default sample size is set to 16 for le testing
     b_plus_tree(const string & directory_path);
 
     //same as in r-tree, but modified for memory applications
@@ -161,12 +176,21 @@ public:
     //used to get root and handler info for main
     int getRootPage()  { return root_page; }
     page_handler& getHandler()  { return handler; }
-    
+
+    //sampling related functions
+    int getSubtreeRecordCount(void* node);
+
+    void buildAllSamples();
+
+  
     
 
     //void exportToDot(const string& filename);
 
 private:
+
+    //set at runtime
+    int sample_size;
 
     /*translation helper functions*/
 
@@ -203,6 +227,13 @@ private:
     void splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, int & new_page_id);
 
     void saveRoot();
+
+    //sampling related functions
+    int recursiveNodeSubtreeCounter(void* node);
+
+    vector<Record> BuildSamples(void* node, int d);
+
+    vector<Record> sampleWithReplacement(const vector<Record> & record, int d);
 
     
 };

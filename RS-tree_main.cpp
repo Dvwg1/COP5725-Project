@@ -5,7 +5,7 @@ This is used to construct an RS-tree using the h_rtree header files.
 Used in some experiments as is
 */
 
-//h_rtree header files
+// header files
 #include "RStree.hpp"
 #include <iostream>
 #include <fstream>
@@ -14,9 +14,9 @@ Used in some experiments as is
 #include <string>
 #include <queue>
 #include <chrono>
+#include <cstdlib>  
 
 using namespace std;
-
 
 int main() {
 
@@ -34,7 +34,7 @@ int main() {
 	auto start = chrono::high_resolution_clock::now();
 
     //initialize memory-based RS-tree
-    b_plus_tree tree("tree_pages");
+    b_plus_tree tree("RStree_pages");
 
     string line;
     getline(file, line);
@@ -73,20 +73,26 @@ int main() {
 
 
     file.close();
+
+    //do sampling on tree before it can be said to have finished construction
+    tree.buildAllSamples();
+
     //ends timer after sorted data set is complete, calculates elapsed time
 	auto end = std::chrono::high_resolution_clock::now();
 	chrono::duration<double> total_time = end - start;
     cout << "RS-Tree built from CSV and stored on disk.\n";
 	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
+
+    //can used printree and goobab testing to show during demo how it works
     tree.printTree();
 
     //official goobab function tests
     /*
     tree.remove(1364);
+    
 
-    vector<Record> results = tree.rangeQuery(1300, 6000);
-
+    auto results= tree.rangeQuery(1300, 6000);
 
     for (const Record& r : results) {
 
@@ -97,6 +103,14 @@ int main() {
 
     }
     */
+
+    //cleans up disk directory
+    int status = system("rm -rf RStree_pages");
+    if (status == 0)
+        cout << "removed RStree_pages" << endl; 
+    else
+        cerr << "error in cleanup" << endl;
+    
 
     return 0;
 }
