@@ -897,6 +897,7 @@ int b_plus_tree::recursiveNodeSubtreeCounter(void* node) {
 //adapted from the pseudocode algorithm provided by Wang et al., used to generate samples for internal nodes
 vector<Record> b_plus_tree::BuildSamples(void* node, int d){
 
+    //lines 1-2
     //leaf node condition
     if (isPointerValid(node)){
         
@@ -924,25 +925,39 @@ vector<Record> b_plus_tree::BuildSamples(void* node, int d){
     //internal node condition, creates instance from provided node
     internal_node* internal = reinterpret_cast<internal_node*>(node);
 
-    //similar to above record vector, but this time is for subtree
-    //basically: S <- 
-    vector<Record> subtree_records;
-
+    //lines 3-4
     //checks amount of samples
     if (internal->sample_count < SAMPLE_SIZE ) {
 
         d = d + (2 * SAMPLE_SIZE) - internal->sample_count;
     }
 
-    //need lines 6-10
+    //line 5
+    //basically: S <- Ø
+    vector<Record> subtree_records;
 
     //internal node condition
+    //WILL NEED ELIGIBILITY TEST ASP
     //loops through all of its children to get count
+    //line 6
     for (int i = 0; i <= internal->numKeys; i++) {
 
+        //line 7
+        //subtract SAMPLE_SIZE from node's sample count to see how much is needed
+        int d0 = (SAMPLE_SIZE - internal->sample_count);
+
+        //line 8
+        //stores results of running BuildSamples recursively using internal and d0
+        vector<Record> temp_records = BuildSamples(internal, d0);
+        //combine the two records
+        subtree_records.insert(subtree_records.end(), temp_records.begin(), temp_records.end());
 
     }
 
+    //fills up sample_buffer with elements in subtree_records
+    //line 9
+
+    return subtree_records;
 
 
 
@@ -1042,12 +1057,15 @@ void b_plus_tree::printTree() {
             int total_records = getSubtreeRecordCount(internal);
 
             cout << "total records: " << total_records << endl;
-            
+
+
             cout << "\n";
 
             //prints all of its children
             for (int i = 0; i <= internal->numKeys; ++i)
                 q.push(internal->children[i]);
+
+
         }
     }
 }
