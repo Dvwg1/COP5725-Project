@@ -180,6 +180,8 @@ public:
     //sampling related functions
     int getSubtreeRecordCount(void* node);
 
+    void buildAllSamples();
+
   
     
 

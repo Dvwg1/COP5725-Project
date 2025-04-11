@@ -894,7 +894,8 @@ int b_plus_tree::recursiveNodeSubtreeCounter(void* node) {
 }
 
 
-//adapted from the pseudocode algorithm provided by Wang et al., used to generate samples for internal nodes
+//adapted from the pseudocode algorithm 2 provided by Wang et al., used to generate samples for internal nodes
+//takes in a node and a desired number (0 by default), and fills the samples for each node 
 vector<Record> b_plus_tree::BuildSamples(void* node, int d){
 
     //lines 1-2
@@ -942,26 +943,57 @@ vector<Record> b_plus_tree::BuildSamples(void* node, int d){
     //line 6
     for (int i = 0; i <= internal->numKeys; i++) {
 
+        //get the child
+        void * child = internal->children[i];
+
+
         //line 7
         //subtract SAMPLE_SIZE from node's sample count to see how much is needed
         int d0 = (SAMPLE_SIZE - internal->sample_count);
 
         //line 8
         //stores results of running BuildSamples recursively using internal and d0
-        vector<Record> temp_records = BuildSamples(internal, d0);
+        vector<Record> temp_records = BuildSamples(child, d0);
         //combine the two records
         subtree_records.insert(subtree_records.end(), temp_records.begin(), temp_records.end());
 
     }
 
-    //fills up sample_buffer with elements in subtree_records
+    //fills up sample_buffer with elements in subtree_records, while deleting those already inserts
     //line 9
+    //while not really mentioned in the paper, to avoid deterministic biases, subtree_records are shuffled
+    //using a different random seed
+    static default_random_engine shuffle_seed(random_device{}());
+    shuffle(subtree_records.begin(), subtree_records.end(), shuffle_seed);
+    auto itr = subtree_records.begin();
+    while (itr != subtree_records.end() && internal->sample_count < SAMPLE_SIZE){
 
+        //inserts the record and erases it for subtree_records
+        internal->sample_buffer[internal->sample_count++] = *itr;
+        itr = subtree_records.erase(itr);  
+
+
+    }
+
+    //return the remaining values
+    //line 10
     return subtree_records;
+}
 
+//used to build samples for all eligible nodes, starts at root, call when tree has been "built"
+void b_plus_tree::buildAllSamples(){
 
+    //print out (can remove)
+    cout << "Beginning to fill all eligible node buffers" << endl;
 
+    //default value
+    int d = 0;
 
+    //call the BuildSample function from root
+    BuildSamples(root,d);
+
+    //debugging
+    cout << "Buffer Sample filling complete!" << endl;
 }
 
 
@@ -1057,6 +1089,24 @@ void b_plus_tree::printTree() {
             int total_records = getSubtreeRecordCount(internal);
 
             cout << "total records: " << total_records << endl;
+
+            //print sample buffer (if exists)
+            if (internal->sample_count > 0) {
+                cout << "  Sample Buffer (" << internal->sample_count << "):\n";
+
+                for (int i = 0; i < internal->sample_count; ++i) {
+                    const Record& r = internal->sample_buffer[i];
+                    cout << "    [" << r.hilbert << "] " << r.id
+                        << " | (" << r.lon << ", " << r.lat << ")"
+                        << " | " << r.timestamp << "\n";
+                }
+            }   
+
+            else 
+            {
+                cout << "  (no sample buffer)\n";
+            }
+
 
 
             cout << "\n";
