@@ -6,6 +6,9 @@ https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 
 https://www.mikeash.com/pyblog/friday-qa-2012-07-27-lets-build-tagged-pointers.html
 
+https://stackoverflow.com/questions/33131800/c-generating-random-numbers-in-a-loop-using-default-random-engine
+https://en.cppreference.com/w/cpp/numeric/random/binomial_distribution
+
 https://github.com/andylamp/BPlusTree
 https://github.com/myui/btree4j
 
@@ -37,6 +40,10 @@ The last two links are used as inspiration for the disk based implementation of 
 #include <filesystem>
 #include <algorithm>
 #include <cassert>
+
+//sampling
+#include <chrono>
+#include <random>
 
 using namespace std;
 
@@ -793,12 +800,9 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
         //deleting a leaf node should not trigger a merge
         merged = false;
         return;
-
-       
-        
+     
     } 
     
-
     //internal node condition
     else {
 
@@ -890,25 +894,92 @@ int b_plus_tree::recursiveNodeSubtreeCounter(void* node) {
 }
 
 
-//when called in main, rebuilds the samples for all eligible nodes in the tree from root
-void b_plus_tree::reBuildAllSamples() {
+//adapted from the pseudocode algorithm provided by Wang et al., used to generate samples for internal nodes
+vector<Record> b_plus_tree::BuildSamples(void* node, int d){
 
-    //error checking
-    if (!root)
-        return;
+    //leaf node condition
+    if (isPointerValid(node)){
+        
+        //gets the page id, allocates buffer, reads from page
+        int page_id = pointerToPageID(node);
+        char buffer[PAGE_SIZE];
+        handler.readPage(page_id, buffer);
 
-    //debug print statement
-    cout << "rebuilding all sample buffers..." << endl;
+        //creates instance of disk leaf to return record_num
+        disk_leaf_node * leaf = reinterpret_cast<disk_leaf_node*>(buffer);
 
-    //calls recursive BuildSamples
-    int samples = BuildSamples(root);
-    
+        //creates vector to hold all of leaf records
+        vector<Record> records;
+
+        //populatres vector from leaf record
+        for (int i =0; i < leaf->record_num; i++){
+            //mfers call me the sandwich
+            records.push_back(leaf->records[i]);
+        }
+
+        //return random samples
+        return sampleWithReplacement(records, d);
+    }
+
+    //internal node condition, creates instance from provided node
+    internal_node* internal = reinterpret_cast<internal_node*>(node);
+
+    //similar to above record vector, but this time is for subtree
+    //basically: S <- 
+    vector<Record> subtree_records;
+
+    //checks amount of samples
+    if (internal->sample_count < SAMPLE_SIZE ) {
+
+        d = d + (2 * SAMPLE_SIZE) - internal->sample_count;
+    }
+
+    //need lines 6-10
+
+    //internal node condition
+    //loops through all of its children to get count
+    for (int i = 0; i <= internal->numKeys; i++) {
+
+
+    }
+
+
+
+
+
 }
 
-//recusrively samples for every internal node in the tree
-int b_plus_tree::BuildSamples(void * node) {
 
-    return 0;
+//created with inspiration from the description of sampling from Wang et al.
+//takes in records, returns d number of samples
+vector<Record> b_plus_tree::sampleWithReplacement(const vector<Record> & record, int d){
+
+    //will hold samples
+    vector<Record> samples;
+
+    //edge case for d=0, just returns no samples from empty vector
+    if (record.empty())
+        return samples;
+
+    //defines the default random engine used for random sampling, seeded with computer clock  
+    //references: https://stackoverflow.com/questions/33131800/c-generating-random-numbers-in-a-loop-using-default-random-engine
+    static default_random_engine rand_gen (chrono::steady_clock::now().time_since_epoch().count());
+
+    //uses predefined binomial distribution function
+    //references: https://en.cppreference.com/w/cpp/numeric/random/binomial_distribution
+    binomial_distribution<int> dist(record.size() -1, .5);
+
+    //loops through the passed in records, sampling at random and pushing into samples vector
+    //uses d as the constraint
+    for (int i = 0; i < d; i++ ){
+
+        int round = dist(rand_gen);
+        round = min(round, static_cast<int>((record.size() -1)));
+        samples.push_back(record[round]);
+
+    }
+
+    return samples;
 }
 
 

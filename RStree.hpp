@@ -180,8 +180,7 @@ public:
     //sampling related functions
     int getSubtreeRecordCount(void* node);
 
-    //public RebuildSamples
-    void reBuildAllSamples();
+  
     
 
     //void exportToDot(const string& filename);
@@ -230,7 +229,9 @@ private:
     //sampling related functions
     int recursiveNodeSubtreeCounter(void* node);
 
-    int BuildSamples(void* node);
+    vector<Record> BuildSamples(void* node, int d);
+
+    vector<Record> sampleWithReplacement(const vector<Record> & record, int d);
 
     
 };
