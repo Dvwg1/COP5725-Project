@@ -166,7 +166,7 @@ public:
     b_plus_tree(const string & directory_path);
 
     //same as in r-tree, but modified for memory applications
-    void insert(int key, const Record& rec);
+    void insert(int key, const Record& rec, bool build_mode);
     void remove(int key);
     vector<Record> rangeQuery(int low, int high);
 
@@ -206,7 +206,7 @@ private:
     /*memory related functionality*/
     //stores the root page id 
     void * root;
-    void insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child);
+    void insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child, bool build_mode);
 
     //modified to be memory based
     void splitLeaf(mem_leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node);
@@ -234,6 +234,9 @@ private:
     vector<Record> BuildSamples(void* node, int d);
 
     vector<Record> sampleWithReplacement(const vector<Record> & record, int d);
+
+    //used for standard inserts
+    void updateSampleBuffer(internal_node* node, const Record& e);
 
     
 };

@@ -60,7 +60,7 @@ int main() {
                 r.timestamp[sizeof(r.timestamp) - 1] = '\0';
                 r.hilbert = stoi(hStr);
 
-                tree.insert(r.hilbert, r);
+                tree.insert(r.hilbert, r, true);
             } 
             
             //error catching for debugging
@@ -85,7 +85,7 @@ int main() {
 
 
     //can used printree and goobab testing to show during demo how it works
-    tree.printTree();
+    //tree.printTree();
 
     //official goobab function tests
     /*
@@ -103,6 +103,19 @@ int main() {
 
     }
     */
+
+    Record test;
+    strcpy(test.id, "test_id_0001");
+    test.lon = 99.9999f;
+    test.lat = 99.9999f;
+    strcpy(test.timestamp, "2099-12-31 23:59:59");
+    test.hilbert = 999999;  // very distinct
+
+    tree.insert(test.hilbert, test, false);
+
+    tree.printTree();
+
+
 
     //cleans up disk directory
     int status = system("rm -rf RStree_pages");
