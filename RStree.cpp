@@ -44,6 +44,7 @@ The last two links are used as inspiration for the disk based implementation of 
 //sampling
 #include <chrono>
 #include <random>
+#include <unordered_set>
 
 using namespace std;
 
@@ -128,46 +129,7 @@ string page_handler::getPagePath(int pageID) {
 
 /*end of page handler functions*/
 
-/*B Plus Tree function declaration*/
-/*
-//constructor
-b_plus_tree::b_plus_tree(const string& dir) : handler(dir) {
-
-    //opens the root.meta file for writing
-    ifstream in(ROOT_META_FILE);
-
-    //if exists and real, will read root page ID into root_page
-    if (in.is_open()) {
-        in >> root_page;
-    } 
-    
-    //if doesn't exist yet, create a leaf node, save to disk, saves root value
-    else {
-        root_page = createLeaf();
-        saveRoot();
-    }
-}
-*/
-
-//used to save the root page id for recals
-/*
-void b_plus_tree::saveRoot() {
-
-    //opens root.meta file for reading
-    ofstream out(ROOT_META_FILE);
-
-    //reads in the value
-    out << root_page;
-}
-*/
-
-//full memory constructor
-// perhaps the sketchiest patch I have ever done here at the great FSU
-// with a non-sense directory for handler
-/*b_plus_tree::b_plus_tree() : handler("dont_open_nothing_inside/"){
-    root = nullptr;
-}*/
-
+/*tree related functionality*/
 //hybrid constructor
 b_plus_tree::b_plus_tree(const string& dir) : handler(dir) {
 
@@ -255,8 +217,8 @@ inline bool b_plus_tree::isPointerValid(void* ptr) const {
     return (reinterpret_cast<uintptr_t>(ptr) & 0x8000000000000000) != 0;
 }
 
-//used to insert new records into nodes 
-void b_plus_tree::insert(int key, const Record& rec) {
+//used for inserts considered 
+void b_plus_tree::insert(int key, const Record& rec, bool build_mode) {
 
     //if no root, initialize one
     if (!root) {
@@ -285,7 +247,7 @@ void b_plus_tree::insert(int key, const Record& rec) {
     void* new_child = nullptr;
 
     //calls recursive
-    insertRecursive(root, key, rec, promoted_key, new_child);
+    insertRecursive(root, key, rec, promoted_key, new_child, build_mode);
 
     //if root splits, create new internal, set root to new_root
     if (new_child) {
@@ -307,8 +269,7 @@ void b_plus_tree::insert(int key, const Record& rec) {
 
 //used for record insertion, splitting, and promoted key upward propagation
 //hybridized version
-
-void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child) {
+void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child, bool build_mode) {
 
     //checks the node to see if it translates to a tagged pointer
     if (isPointerValid(node)) {
@@ -348,7 +309,7 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
         }
 
         //if node at eh max capacity
-        else{
+        else {
 
             //creates instance of new id
             int new_page_id;
@@ -382,7 +343,21 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
         //temporary pormoted key and new child to be inserted recursively
         int temp_key = -1;
         void* temp_child = nullptr;
-        insertRecursive(child, key, rec, temp_key, temp_child);
+        insertRecursive(child, key, rec, temp_key, temp_child, build_mode);
+
+        //if build mode insert isn't used, calls the update function
+        if (!build_mode){
+
+            //debugging
+            //cout << "in standard insert mode" << endl;
+            updateSampleBuffer(internal, rec);
+        }
+
+        //debugging code for determing mode
+        /*
+        else
+            cout << "in build mode" << endl;
+        */
 
         //if the new child page is valid
         if (temp_child) {
@@ -425,104 +400,6 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
     }
 
 }
-
-//used for record insertion, splitting, and promoted key upward propagation
-/*
-void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& promoted_key, void*& new_child) {
-
-    //determine node type
-    bool is_mem_leaf = reinterpret_cast<mem_leaf_node*>(node)->is_leaf;
-
-    //leaf node condition
-    if (reinterpret_cast<mem_leaf_node*>(node)->is_leaf) {
-
-        //create a leaf node pointer instance
-        mem_leaf_node* leaf = reinterpret_cast<mem_leaf_node*>(node);
-
-        //if the leaf node/page has enough room for a record
-        if (leaf->record_num < MAX_LEAF_RECORDS) {
-
-            //used to maintain hilber sort order
-            int i = leaf->record_num - 1;
-            while (i >= 0 && leaf->records[i].hilbert > key) {
-                leaf->records[i + 1] = leaf->records[i];
-                i--;
-            }
-
-            //updates records
-            leaf->records[i + 1] = rec;
-            leaf->record_num++;
-
-            //updates root related values
-            promoted_key = -1;
-            new_child = nullptr;
-
-        }
-
-        //if leaf node/page has NO room for a record
-         else {
-
-            //calls the function to split and create a new leaf node
-            splitLeaf(leaf, rec, promoted_key, new_child);
-        }
-    } 
-    
-    //internal node condition
-    else {
-
-        //creates internal node using buffer
-        internal_node* internal = reinterpret_cast<internal_node*>(node);
-
-        //used to main key order
-        int i = 0;
-        while (i < internal->numKeys && key > internal->keys[i]) i++;
-        void* child = internal->children[i];
-
-        //temporary pormoted key and new child to be inserted recursively
-        int temp_key = -1;
-        void* temp_child = nullptr;
-        insertRecursive(child, key, rec, temp_key, temp_child);
-
-        //if the new child page is valid
-        if (temp_child) {
-
-            //if the internal node has enough room for a child
-            if (internal->numKeys < MAX_INTERNAL_KEYS) {
-
-                //assignments
-                for (int j = internal->numKeys; j > i; --j) {
-                    internal->keys[j] = internal->keys[j - 1];
-                    internal->children[j + 1] = internal->children[j];
-                }
-
-                //updates node information
-                internal->keys[i] = temp_key;
-                internal->children[i + 1] = temp_child;
-                internal->numKeys++;
-
-                //updates promoted key and new child page accordingly
-                promoted_key = -1;
-                new_child = nullptr;
-
-            } 
-            
-            //if internal node can have no more children
-            else {
-
-                //calls the function to split the internal node, and create new page internal
-                splitInternal(internal, temp_key, temp_child, promoted_key, new_child);
-            }
-
-        } 
-        
-        //if no other conditions are met, set values to invalid
-        else {
-            promoted_key = -1;
-            new_child = nullptr;
-        }
-    }
-}
-*/
 
 //disk version of leaf split, based on logic from r-tree
 void b_plus_tree::splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, int & new_page_id){
@@ -926,6 +803,13 @@ vector<Record> b_plus_tree::BuildSamples(void* node, int d){
     //internal node condition, creates instance from provided node
     internal_node* internal = reinterpret_cast<internal_node*>(node);
 
+    //eligibility test based off of |P(u)| ≤ 2s as mentioned in Wang et al.
+    int subtree_size = getSubtreeRecordCount(internal);
+    //will not add records to an internal node's sample buffer if its subtree size is too low
+    if (subtree_size <= 2 * SAMPLE_SIZE) {
+        return {};
+    }
+
     //lines 3-4
     //checks amount of samples
     if (internal->sample_count < SAMPLE_SIZE ) {
@@ -1027,6 +911,48 @@ vector<Record> b_plus_tree::sampleWithReplacement(const vector<Record> & record,
     }
 
     return samples;
+}
+
+//sampling used for standard inserts, where each sample record has a 1/|P(u)| of getting replaced with the
+//newly inserted inserted, of course assuming that record falls under the node in some way. Implementation
+//based on description in Wang et al.
+void b_plus_tree::updateSampleBuffer(internal_node* node, const Record& e){
+
+    //eligibility test based off of |P(u)| ≤ 2s as mentioned in Wang et al.
+    int subtree_size = getSubtreeRecordCount(node);
+
+    //will not add records to an internal node's sample buffer if its subtree size is too low
+    if (subtree_size <= 2 * SAMPLE_SIZE) {
+        return;
+    }
+
+    ///uses same randomizer used in sampleWithReplacement
+    static default_random_engine rand_gen(chrono::steady_clock::now().time_since_epoch().count());
+
+    //calculates 1 / |P(u)| and performs binomial distribution as described
+    double prob = 1.0 / subtree_size;
+    binomial_distribution<int> binom(node->sample_count, prob);
+
+    //returns number of samples to replace
+    size_t num_to_replace = binom(rand_gen);
+
+    //if 0 is given, just end the program
+    if (num_to_replace == 0) 
+        return;
+
+    //set of indices that are to be swapped
+    unordered_set<int> replace_indices;
+
+    //pick indices to be replaced
+    while (replace_indices.size() < num_to_replace) {
+        replace_indices.insert(rand_gen() % node->sample_count);
+    }
+
+    //proceeds to replace the value at the randomly selected indices
+    for (int i : replace_indices) {
+        node->sample_buffer[i] = e;
+    }
+
 }
 
 
