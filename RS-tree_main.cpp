@@ -84,14 +84,26 @@ int main() {
 	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
 
+
+
     //can used printree and goobab testing to show during demo how it works
-    //tree.printTree();
+    tree.printTree();
+    cout << "before removals" << endl;
 
     //official goobab function tests
-    /*
-    tree.remove(1364);
     
+    tree.remove(5544);
+    tree.remove(5544);
+    tree.remove(5546);
+    tree.remove(5717);
+    tree.remove(9851);
+    tree.remove(9859);
+    tree.remove(9859);
 
+    cout << "after removals" << endl;
+    tree.printTree();
+
+/*
     auto results= tree.rangeQuery(1300, 6000);
 
     for (const Record& r : results) {
@@ -104,6 +116,7 @@ int main() {
     }
     */
 
+    /*
     Record test;
     strcpy(test.id, "test_id_0001");
     test.lon = 99.9999f;
@@ -114,6 +127,7 @@ int main() {
     tree.insert(test.hilbert, test, false);
 
     tree.printTree();
+    */
 
 
 
