@@ -212,7 +212,7 @@ private:
     void splitLeaf(mem_leaf_node* old_node, const Record& record, int& promoted_key, void*& new_node);
     void splitInternal(internal_node* old_node, int insert_key, void* insert_child, int& promoted_key, void*& new_node);
 
-    void removeRecursive(void * node, int key, bool& merged);
+    void removeRecursive(void * node, int key, bool& merged, Record& deleted_record);
 
     
     /*disk related functionality*/
@@ -237,6 +237,9 @@ private:
 
     //used for standard inserts
     void updateSampleBuffer(internal_node* node, const Record& e);
+
+    //removes sample instances
+    void removeSample(internal_node* node, const Record& e);
 
     
 };

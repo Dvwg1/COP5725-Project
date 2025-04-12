@@ -628,11 +628,15 @@ void b_plus_tree::remove(int key) {
 
     //same logic as in r-tree
     bool merged = false;
-    removeRecursive(root, key, merged);
+
+    //initially empty, should be populated with the deleted record info in recursive
+    Record deleted_record;
+
+    removeRecursive(root, key, merged, deleted_record);
 }
 
 //main remove functionality, as it is down recursively
-void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
+void b_plus_tree::removeRecursive(void* node, int key, bool& merged, Record& deleted_record) {
 
     //if pointer is to a leaf, leaf node condition
     if (isPointerValid(node)) {
@@ -659,6 +663,12 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
         //if the key exists, removed by shifting later records to the left
         if (i < leaf->record_num && leaf->records[i].hilbert == key) {
 
+            //records the record to be deleted
+            deleted_record = leaf->records[i];
+
+            //debug/test statement
+            cout << "Captured deleted record at leaf: " << "hilbert = " << deleted_record.hilbert << ", id = " << deleted_record.id << endl;
+
             //shift records left to remove
             for (int j = i; j < leaf->record_num - 1; j++)
                 leaf->records[j] = leaf->records[j + 1];
@@ -670,9 +680,6 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
 
         }
 
-         //debug
-         cout << "Removed record with hilbert: " << key << " from page " << page_id << endl;
-
 
         //deleting a leaf node should not trigger a merge
         merged = false;
@@ -682,7 +689,6 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
     
     //internal node condition
     else {
-
 
         //create an internal node
         internal_node* internal = reinterpret_cast<internal_node*>(node);
@@ -696,7 +702,11 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged) {
 
         //recurse into the child that may contain
         bool child_merged = false;
-        removeRecursive(internal->children[i], key, child_merged);
+        removeRecursive(internal->children[i], key, child_merged, deleted_record);
+
+        //debug and test
+        cout << "captured record that would be deleted with hilbert= " << deleted_record.hilbert << ", id = " << deleted_record.id << endl;
+        removeSample(internal, deleted_record);
 
         //if the child indicated that is was merged, was empitied
         if (child_merged && i + 1 < internal->numKeys) {
@@ -955,6 +965,36 @@ void b_plus_tree::updateSampleBuffer(internal_node* node, const Record& e){
 
 }
 
+//used to remove deleted record from sample buffer
+void b_plus_tree::removeSample(internal_node* node, const Record& e){
+
+    //used for index manipulation, value removal, shifting, and count - a swiss army variable
+    int swiss_army_idx = 0;
+
+    //loops through all of the samples in node's buffer
+    for (int i =0; i < node->sample_count; i++){
+
+        //gets record instance from the sample_buffer
+        const Record& record = node->sample_buffer[i];
+
+        //if sample does not match the deleted record...
+        if (!(record.hilbert == e.hilbert && strncmp(record.id, e.id, sizeof(e.id)) == 0 )){
+
+            //only keeps those not deleted and updates the swiss_army_idx for sample_count purposes
+            node->sample_buffer[swiss_army_idx++] = record;
+
+        }
+    }
+
+        //updates sample count as needed
+        node->sample_count = swiss_army_idx;
+
+        //debug/test
+        cout << "sample buffer now contains: " << node->sample_count << " samples." << endl;
+        
+
+    
+}
 
 //used to print the tree, more so for our error checking tbh
 void b_plus_tree::printTree() {
