@@ -54,8 +54,8 @@ int main() {
                 strncpy(r.id, idStr.c_str(), sizeof(r.id));
                 r.id[sizeof(r.id) - 1] = '\0';
 
-                r.lon = stof(latStr);
-                r.lat = stof(lonStr);
+                r.lon = stof(lonStr);
+                r.lat = stof(latStr);
                 strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
                 r.timestamp[sizeof(r.timestamp) - 1] = '\0';
                 r.hilbert = stoi(hStr);
