@@ -4,14 +4,28 @@
 References:
 https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 
+https://www.mikeash.com/pyblog/friday-qa-2012-07-27-lets-build-tagged-pointers.html
+
+https://stackoverflow.com/questions/33131800/c-generating-random-numbers-in-a-loop-using-default-random-engine
+https://en.cppreference.com/w/cpp/numeric/random/binomial_distribution
+
 https://github.com/andylamp/BPlusTree
 https://github.com/myui/btree4j
 
-Based off of our implementation of the Hilbert sorted B+-tree, we make modifications needed to 
-transform it into the RS-tree described in the paper. An important note is that we will
-not be using the optional insertion buffers, batch buffering, and queries will be done
-using Hilbert values rather than with coordinates. Moreover, only the leaf nodes will be
-stored in disk, as recommended by Dr. Zhao
+Heavily modified implementation, with the first step being to transform a disk based 
+r-tree into a memory based RS-tree, before modifying it to store leaves on disk.
+
+based on the r-tree that was in turn based on [1]
+
+[2] as well as the slidesserved as the inspiration for how the pointer to id and id to pointer system works,
+through the use of tagged pointers
+
+[5][6] are used as inspiration for the disk based implementation of the B+ tree.
+
+[3][4] are used as reference for random number generation
+
+Ultimately, this RS-tree is based on the RS-tree proposed and implemented by Wang et al., with some
+modifications and changes
 
 ---RS-Tree function and struct declarations ---
 
@@ -30,7 +44,8 @@ using namespace std;
 //Note: pages represent a node
 
 //sample buffer size. Testing: 16. Default: 256. Experimentals: 16, 256. 4096.
-constexpr int SAMPLE_SIZE = 16;
+constexpr int SAMPLE_SIZE = 256;
+//extern int SAMPLE_SIZE;
 
 //defines the Page size to be 8000 bytes, as Wang et al. have their page sizes set to 8 KB
 constexpr size_t PAGE_SIZE = 8000;
@@ -182,9 +197,6 @@ public:
 
     void buildAllSamples();
 
-  
-    
-
     //void exportToDot(const string& filename);
 
 private:
@@ -240,6 +252,9 @@ private:
 
     //removes sample instances
     void removeSample(internal_node* node, const Record& e);
+
+    //replenishes buffers recursively
+    void replenishSamples(internal_node* node);
 
     
 };

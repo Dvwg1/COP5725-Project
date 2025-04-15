@@ -14,7 +14,8 @@ Used in some experiments as is
 #include <string>
 #include <queue>
 #include <chrono>
-#include <cstdlib>  
+#include <cstdlib>
+#include <random>  
 
 using namespace std;
 
@@ -83,14 +84,12 @@ int main() {
     cout << "RS-Tree built from CSV and stored on disk.\n";
 	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
-
-
-
     //can used printree and goobab testing to show during demo how it works
     tree.printTree();
-    cout << "before removals" << endl;
+    /*cout << "before removals" << endl;
 
     //official goobab function tests
+    
     
     tree.remove(5544);
     tree.remove(5544);
@@ -101,9 +100,52 @@ int main() {
     tree.remove(9859);
 
     cout << "after removals" << endl;
+
+    // Insert 5000 garbage records in live (non-build) mode
+    mt19937 rng(42);  // reproducible randomness
+    uniform_int_distribution<int> hilbert_dist(10000, 99999);
+    uniform_real_distribution<float> float_dist(-999.0f, 999.0f);
+
+    for (int i = 0; i < 5000; ++i) {
+        Record r;
+
+        // Garbage but valid values
+        snprintf(r.id, sizeof(r.id), "gb%05d", i);
+        r.lon = float_dist(rng);
+        r.lat = float_dist(rng);
+        snprintf(r.timestamp, sizeof(r.timestamp), "ts%05d", i);
+        r.hilbert = hilbert_dist(rng);
+
+        // Live insert (not build mode)
+        tree.insert(r.hilbert, r, false);
+    }
+    cout << "Inserted 5000 garbage records in live mode.\n";
+
+    //needed repairs
+    //tree.repairAllEligibleBuffers();
+
+    //tree.buildAllSamples();
+
+    for (int i = 0; i < 5000; ++i) {
+        Record r;
+
+        // Garbage but valid values
+        snprintf(r.id, sizeof(r.id), "gb%05d", i);
+        r.lon = float_dist(rng);
+        r.lat = float_dist(rng);
+        snprintf(r.timestamp, sizeof(r.timestamp), "ts%05d", i);
+        r.hilbert = hilbert_dist(rng);
+
+        // Live insert (not build mode)
+        tree.remove(r.hilbert);
+    }
+    cout << "Deleted 5000 garbage records in live mode.\n";
+    
+
+
     tree.printTree();
 
-/*
+    
     auto results= tree.rangeQuery(1300, 6000);
 
     for (const Record& r : results) {
@@ -114,7 +156,7 @@ int main() {
         << r.timestamp << "\n";
 
     }
-    */
+    
 
     /*
     Record test;
@@ -128,6 +170,9 @@ int main() {
 
     tree.printTree();
     */
+
+
+
 
 
 

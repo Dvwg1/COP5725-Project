@@ -1,4 +1,4 @@
-// --- Hilbert R-Tree ---
+// --- RS-Tree ---
 
 /*
 References:
@@ -15,10 +15,17 @@ https://github.com/myui/btree4j
 Heavily modified implementation, with the first step being to transform a disk based 
 r-tree into a memory based RS-tree, before modifying it to store leaves on disk.
 
-the 2nd served as the inspiration for how the pointer to id and id to pointer system works,
+based on the r-tree that was in turn based on [1]
+
+[2] as well as the slidesserved as the inspiration for how the pointer to id and id to pointer system works,
 through the use of tagged pointers
 
-The last two links are used as inspiration for the disk based implementation of the B+ tree.
+[5][6] are used as inspiration for the disk based implementation of the B+ tree.
+
+[3][4] are used as reference for random number generation
+
+Ultimately, this RS-tree is based on the RS-tree proposed and implemented by Wang et al., with some
+modifications and changes
 
 --- RS-Tree function and helper function implementation ---
 
@@ -388,6 +395,7 @@ void b_plus_tree::insertRecursive(void* node, int key, const Record& rec, int& p
 
                 //calls the function to split the internal node, and create new page internal
                 splitInternal(internal, temp_key, temp_child, promoted_key, new_child);
+
             }
 
         } 
@@ -708,6 +716,15 @@ void b_plus_tree::removeRecursive(void* node, int key, bool& merged, Record& del
         cout << "captured record that would be deleted with hilbert= " << deleted_record.hilbert << ", id = " << deleted_record.id << endl;
         removeSample(internal, deleted_record);
 
+        //eligibility test based off of |P(u)| ≤ 2s as mentioned in Wang et al.
+        int subtree_size = getSubtreeRecordCount(internal);
+
+        //check to see the if the internal node is eligible + needs replenishing after getting its buffer drained
+        if (internal->sample_count < SAMPLE_SIZE/2 && subtree_size > 2 * SAMPLE_SIZE) {
+            replenishSamples(internal);
+
+        }
+
         //if the child indicated that is was merged, was empitied
         if (child_merged && i + 1 < internal->numKeys) {
             
@@ -832,7 +849,6 @@ vector<Record> b_plus_tree::BuildSamples(void* node, int d){
     vector<Record> subtree_records;
 
     //internal node condition
-    //WILL NEED ELIGIBILITY TEST ASP
     //loops through all of its children to get count
     //line 6
     for (int i = 0; i <= internal->numKeys; i++) {
@@ -888,6 +904,9 @@ void b_plus_tree::buildAllSamples(){
 
     //debugging
     cout << "Buffer Sample filling complete!" << endl;
+
+
+
 }
 
 
@@ -936,6 +955,13 @@ void b_plus_tree::updateSampleBuffer(internal_node* node, const Record& e){
         return;
     }
 
+    if (node->sample_count == 0) {
+        node->sample_buffer[0] = e;
+        node->sample_count = 1;
+        return;
+    }
+
+
     ///uses same randomizer used in sampleWithReplacement
     static default_random_engine rand_gen(chrono::steady_clock::now().time_since_epoch().count());
 
@@ -949,7 +975,7 @@ void b_plus_tree::updateSampleBuffer(internal_node* node, const Record& e){
     //if 0 is given, just end the program
     if (num_to_replace == 0) 
         return;
-
+    
     //set of indices that are to be swapped
     unordered_set<int> replace_indices;
 
@@ -994,6 +1020,64 @@ void b_plus_tree::removeSample(internal_node* node, const Record& e){
         
 
     
+}
+
+//used to replenish buffers that are not full enough, but it is buggy
+void b_plus_tree::replenishSamples(internal_node* node) {
+
+    //creates vector to store collected samples
+    vector<Record> collected;
+
+    //iterates through all of the children
+    for (int i = 0; i <= node->numKeys; ++i) {
+
+        //creates child node instance
+        void* child = node->children[i];
+
+        //leaf conditon
+        if (isPointerValid(child)) {
+
+            //leaf node initialization
+            char buffer[PAGE_SIZE];
+            handler.readPage(pointerToPageID(child), buffer);
+            disk_leaf_node* leaf = reinterpret_cast<disk_leaf_node*>(buffer);
+
+            //populates the vector
+            for (int j = 0; j < leaf->record_num; ++j) {
+                collected.push_back(leaf->records[j]);
+            }
+        }
+        
+        //internal node condition
+        else {
+
+            //internal node
+            internal_node* internal_child = reinterpret_cast<internal_node*>(child);
+
+            //replenish if needed
+            if (internal_child->sample_count < SAMPLE_SIZE / 2) {
+                replenishSamples(internal_child);
+            }
+
+            //fills in collected
+            for (int j = 0; j < internal_child->sample_count; ++j) {
+                collected.push_back(internal_child->sample_buffer[j]);
+            }
+        }
+    }
+
+    //shuffles collected records
+    static default_random_engine rand_gen(chrono::steady_clock::now().time_since_epoch().count());
+    std::shuffle(collected.begin(), collected.end(), rand_gen);
+
+    //fills up the buffer as needed
+    int fill = min((int)collected.size(), SAMPLE_SIZE);
+    for (int i = 0; i < fill; ++i) {
+        node->sample_buffer[i] = collected[i];
+    }
+
+    node->sample_count = fill;
+
 }
 
 //used to print the tree, more so for our error checking tbh
