@@ -137,7 +137,7 @@ public:
     //I/O operations functions 
     void insert(int key, const Record& rec);
     void remove(int key);
-    vector<Record> rangeQuery(int low, int high);
+    vector<Record> rangeQueryR(int low, int high);
 
     //used to get root and handler info for main
     int getRootPage()  { return root_page; }

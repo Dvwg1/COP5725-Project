@@ -12,6 +12,9 @@
 #include <chrono>
 #include <cstdlib>
 
+//for count()
+#include <bits/stdc++.h>
+
 using namespace std; 
 
 
@@ -65,6 +68,7 @@ void print_children( b_plus_tree& tree) {
 
 int main() {
 
+    srand(time(0));
     string inputFile;
     cout << "Enter CSV file path: ";
     getline(cin, inputFile);
@@ -75,21 +79,28 @@ int main() {
         return 1;
     }
 
-    string numRecord;
-    cout << "Enter the number of records in this file: ";
-    getline(cin, numRecord);
-    int numRecords = stoi(numRecord) / 4; //divided by 4 to start since each num has 50% chance to be entered in LSTree
+    //string numRecord;
+    //cout << "Enter the number of records in this file: ";
+    //getline(cin, numRecord);
+    //divided by 4 to start since each num has 50% chance to be entered in LSTree
+    int numRecords = 0;
+
+    //letting user know index construction experiment has begun
+    cout << "Index construction cost experiment beginning now: " << endl ;
+
 
     //starts the timer, at this point the file should have been found
-	auto start = chrono::high_resolution_clock::now();
+	auto startBuild = chrono::high_resolution_clock::now();
 
-    //CURRENTLY HERE
     ls_tree tree("ls_tree_pages");
+    max_min_hilbert treesMaxMin;
+    treesMaxMin.max_hilbert = 0;
+    treesMaxMin.min_hilbert = INT32_MAX;  
 
     string line;
 
     int counter = 0;
-    int directoryCounter = 1;
+    int directoryCounter = 0;
     const char LSTreeDir[20] = "ls_tree_pages/btree"; 
     string directroy = LSTreeDir + to_string(directoryCounter); 
     string strDCounter; 
@@ -99,14 +110,10 @@ int main() {
     
     while (getline(file, line)) {
 
-        //check random 1/2 chance that record is in tree
-        int randomNum = rand() % 2;
-        if (randomNum == 1) {continue; }
-
         stringstream ss(line);
         string idStr, latStr, lonStr, tsStr, hStr;
 
-        counter++; 
+        numRecords++; 
         
         //numRecords = numRecords / 2; 
 
@@ -121,12 +128,17 @@ int main() {
                 strncpy(r.id, idStr.c_str(), sizeof(r.id));
                 r.id[sizeof(r.id) - 1] = '\0';
                 //cout << "test1" << endl;
-                r.lon = stof(latStr);
-                r.lat = stof(lonStr);
+                r.lon = stof(lonStr);
+                r.lat = stof(latStr);
                 strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
                 r.timestamp[sizeof(r.timestamp) - 1] = '\0';
                 r.hilbert = stoi(hStr);
 
+                if(r.hilbert > treesMaxMin.max_hilbert) {treesMaxMin.max_hilbert = r.hilbert; } 
+                if(r.hilbert < treesMaxMin.min_hilbert) {treesMaxMin.min_hilbert = r.hilbert; } 
+                
+
+                /* THIS IS NOT DONE UNTIL SECOND TREE
                 if (counter > numRecords) {
                     //new to create a new btree
                     numRecords = numRecords / 2;
@@ -135,16 +147,19 @@ int main() {
                     directoryCounter++;
                     strDCounter = to_string(directoryCounter);
                     directroy = LSTreeDir + strDCounter; 
+                    tree.maxMin.push_back(treesMaxMin); 
+                    treesMaxMin.max_hilbert = r.hilbert;
+                    treesMaxMin.min_hilbert = r.hilbert; 
 
                 } 
-                if (numRecords <= 256000) { //will be 256k 
-                    cout << "numRecords: "<< numRecords << endl;
+                if (numRecords <= 6) { //will be 256000
+                    //cout << "numRecords: "<< numRecords << endl;
                     break; 
-                }
+                }*/ 
                 tree.addToTree(directroy, r.hilbert, r);
                 
                 
-            } 
+            }
             
             //error catching for debugging
             catch (const exception& e) {
@@ -154,25 +169,319 @@ int main() {
         } 
     }
 
+    //ONCE WHOLE FILE IS READ, CREATE SMALLER TREES FROM SAMPLING (COIN-FLIP)
+    //int numRecords = counter; 
+    cout << "num of records in csv: " << numRecords << endl; 
+    int totalNumRecords = numRecords; 
+    numRecords = numRecords / 2; 
+    directoryCounter++;
+    strDCounter = to_string(directoryCounter);
+    directroy = LSTreeDir + strDCounter; 
+    tree.maxMin.push_back(treesMaxMin); 
 
-    // auto smallest = tree.levels.rbegin(); 
-    // b_plus_tree memTree = smallest->second; 
-    tree.insertMemoryTree();
+    //get back to top of file
+    //https://stackoverflow.com/questions/5343173/returning-to-beginning-of-file-after-getline
+    file.clear();
+    file.seekg(0); 
+    vector<string> prev_records; 
+    getline(file, line); // Skip header    
+    
+
+    //loops and continues to read file until 256000 in last tree
+    while (numRecords > 256000) {
+        counter = 0;
+        file.clear();           
+        file.seekg(0);          
+        getline(file, line); // Skip header
+    
+        while (getline(file, line)) {
+            stringstream ss(line);
+            string idStr, latStr, lonStr, tsStr, hStr;
+    
+            if (getline(ss, idStr, ',') &&
+                getline(ss, latStr, ',') &&
+                getline(ss, lonStr, ',') &&
+                getline(ss, tsStr, ',') &&
+                getline(ss, hStr, ',')) {
+    
+                try {
+                    Record r;
+                    strncpy(r.id, idStr.c_str(), sizeof(r.id));
+                    r.id[sizeof(r.id) - 1] = '\0';
+                    r.lon = stof(lonStr);
+                    r.lat = stof(latStr);
+                    strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
+                    r.timestamp[sizeof(r.timestamp) - 1] = '\0';
+                    r.hilbert = stoi(hStr);
+    
+                    if (directroy != "ls_tree_pages/btree1") {
+                        if (!count(prev_records.begin(), prev_records.end(), r.id)) continue;
+                    }
+    
+                    if (rand() % 2 == 1) { continue; } 
+    
+                    tree.addToTree(directroy, r.hilbert, r);
+                    prev_records.push_back(r.id);
+                    counter++;
+    
+                    if (r.hilbert > treesMaxMin.max_hilbert) treesMaxMin.max_hilbert = r.hilbert;
+                    if (r.hilbert < treesMaxMin.min_hilbert) treesMaxMin.min_hilbert = r.hilbert;
+    
+                    if (counter >= numRecords) 
+                        break;
+    
+                } catch (const exception& e) {
+                    cerr << "Invalid line (skipping): " << line << "\n";
+                    cerr << "  Error: " << e.what() << "\n";
+                }
+            }
+        }
+    
+        // Finished one level
+        tree.maxMin.push_back(treesMaxMin);
+        //reset values
+        treesMaxMin.max_hilbert = 0;
+        treesMaxMin.min_hilbert = INT32_MAX; 
+    
+        numRecords /= 2;
+        directoryCounter++;
+        strDCounter = to_string(directoryCounter);
+        directroy = LSTreeDir + strDCounter;
+    }
+    
 
 
+    tree.insertMemoryTree(directroy);
+    
 
-    file.close();
     //ends timer after sorted data set is complete, calculates elapsed time
-	auto end = std::chrono::high_resolution_clock::now();
-	chrono::duration<double> total_time = end - start;
-    cout << "Tree built from CSV and stored on disk.\n";
-	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
+	auto endBuild = std::chrono::high_resolution_clock::now();
+	chrono::duration<double> total_timeBuild = endBuild - startBuild;
+    cout << "Tree built from CSV and stored on disk, except last tree in memory.\n";
+	cout << "Index Construction Cost: " << total_timeBuild.count() << " seconds" << endl;
+
+
+
+    for (size_t i = 0; i < tree.maxMin.size(); i++)
+    {
+        cout << "tree " << i<< " has min_hilbert of: " << tree.maxMin[i].min_hilbert << endl; 
+
+        cout << "tree " << i<< " has max_hilbert of: " << tree.maxMin[i].max_hilbert << endl; 
+    }
+    
+
+    int experimentInput = -1;
+
+    do {
+        cout << endl << endl << "Experiments to run: " << endl;
+        cout << "1. Query cost, vary k (# of samples): " << endl;
+        cout << "2. Query cost, vary q (# of elements in range query): " << endl;
+        cout << "EXPERIMENT 3 ONLY FOR RS-TREE " << endl;
+        cout << "4. Update cost (FYI this experiment will end program and tree will have to be built again): " << endl;
+        cout << "5. Exit program" << endl; 
+        cout << "Please enter the experiment to run: ";
+        cin >> experimentInput; 
+        if (experimentInput == 5) 
+            break; 
+        else if (experimentInput == 4) {
+            cout << "Update Cost experiment now beginning" << endl ;
+            cout << "Now inserting 5000 records into LS-Tree" << endl; 
+            counter = 0; 
+            //insert 5000 records into tree
+            file.clear();
+            file.seekg(0);
+            getline(file, line); //skip header
+            auto startInsert = chrono::high_resolution_clock::now();
+            while (counter < 5000) {       //5000 insertions
+                    getline(file,line);
+                    stringstream ss(line);
+                    string idStr, latStr, lonStr, tsStr, hStr;
+                    if (getline(ss, idStr, ',') &&
+                    getline(ss, latStr, ',') &&
+                    getline(ss, lonStr, ',') &&
+                    getline(ss, tsStr, ',') &&
+                    getline(ss, hStr, ',')) {
+        
+                        try {
+                            Record r;
+                            strncpy(r.id, idStr.c_str(), sizeof(r.id));
+                            r.id[sizeof(r.id) - 1] = '\0';
+                            r.lon = stof(lonStr);
+                            r.lat = stof(latStr);
+                            strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
+                            r.timestamp[sizeof(r.timestamp) - 1] = '\0';
+                            r.hilbert = stoi(hStr);
+            
+                            // if (directroy != "ls_tree_pages/btree1") {
+                            //     if (!count(prev_records.begin(), prev_records.end(), r.id)) continue;
+                            // }
+            
+                            //if (rand() % 2 == 1) { continue; } 
+            
+                            tree.insertMoreRecords(r);
+                            //prev_records.push_back(r.id);
+                            counter++;
+            
+                            // if (r.hilbert > treesMaxMin.max_hilbert) treesMaxMin.max_hilbert = r.hilbert;
+                            // if (r.hilbert < treesMaxMin.min_hilbert) treesMaxMin.min_hilbert = r.hilbert;
+            
+                            //if (counter >= numRecords) break;
+            
+                        } catch (const exception& e) {
+                            cerr << "Invalid line (skipping): " << line << "\n";
+                            cerr << "  Error: " << e.what() << "\n";
+                        }
+                    }
+                //}
+                
+            }
+            //ends timer after sorted data set is complete, calculates elapsed time
+            auto endInsert = std::chrono::high_resolution_clock::now();
+            chrono::duration<double> total_timeInsert = endInsert - startInsert;
+            cout << "Tree built from CSV and stored on disk, except last tree in memory.\n";
+            cout << "Insertion Cost: " << total_timeInsert.count() << " seconds" << endl;
+
+            return 0; 
+
+            //now after inserting those records, they need to be removed. 
+            cout << endl << "Now Cost of Deletion will be recorded. " << endl; 
+            auto startDeletion = std::chrono::high_resolution_clock::now();
+            counter = 0; 
+
+            while (counter < 2) {       //5000 deletions
+                getline(file,line);
+                stringstream ss(line);
+                string idStr, latStr, lonStr, tsStr, hStr;
+                if (getline(ss, idStr, ',') &&
+                getline(ss, latStr, ',') &&
+                getline(ss, lonStr, ',') &&
+                getline(ss, tsStr, ',') &&
+                getline(ss, hStr, ',')) {
+    
+                    try {
+                        Record r;
+                        strncpy(r.id, idStr.c_str(), sizeof(r.id));
+                        r.id[sizeof(r.id) - 1] = '\0';
+                        r.lon = stof(lonStr);
+                        r.lat = stof(latStr);
+                        strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
+                        r.timestamp[sizeof(r.timestamp) - 1] = '\0';
+                        r.hilbert = stoi(hStr);
+                        cout << "removing id: " << r.id << " and hilbert: " << r.hilbert << endl; 
+        
+                        // if (directroy != "ls_tree_pages/btree1") {
+                        //     if (!count(prev_records.begin(), prev_records.end(), r.id)) continue;
+                        // }
+        
+                        //if (rand() % 2 == 1) { continue; } 
+        
+                        tree.removeHilbert(r);
+                        //prev_records.push_back(r.id);
+                        counter++;
+        
+                        // if (r.hilbert > treesMaxMin.max_hilbert) treesMaxMin.max_hilbert = r.hilbert;
+                        // if (r.hilbert < treesMaxMin.min_hilbert) treesMaxMin.min_hilbert = r.hilbert;
+        
+                        //if (counter >= numRecords) break;
+        
+                    } catch (const exception& e) {
+                        cerr << "Invalid line (skipping): " << line << "\n";
+                        cerr << "  Error: " << e.what() << "\n";
+                    }
+                }
+            //}
+            
+        }
+
+
+            auto endDeletion = std::chrono::high_resolution_clock::now();
+            chrono::duration<double> total_timeDeletion = endDeletion - startDeletion;
+            cout << "Tree built from CSV and stored on disk, except last tree in memory.\n";
+            cout << "Deletion Cost: " << total_timeDeletion.count() << " seconds" << endl;
+
+
+
+
+            
+
+        }
+        else if (experimentInput == 1) {
+            //query cost vary k 
+            int minInput, maxInput, kInput; 
+            float kFloatInp; 
+            cout << "Query cost, vary k experiment" << endl;
+            
+            cout << "Please enter the (space separated) min and max hilbert values to search: " ;
+            cin >> minInput >> maxInput; 
+            cout << "Now please enter k (0.02, 0.04, 0.06, 0.08, 0.1): " ;
+            cin >> kFloatInp; 
+            kInput = totalNumRecords * kFloatInp; 
+            cout << kInput << endl; 
+             
+            //cout << minInput << maxInput << kInput;
+            //return 0;
+
+            auto startQueryK = chrono::high_resolution_clock::now();
+            vector<Record> results = tree.querying(9849, 9857, kInput); 
+            cout << "getting out of querying" << endl; 
+            for (size_t i = 0; i < results.size(); i++)
+            {
+                cout << "results ID: " << results[i].id
+                << ", Lat: " << results[i].lat
+                << ", Lon: " << results[i].lon
+                << ", Time: " << results[i].timestamp
+                << ", Hilbert: " << results[i].hilbert << endl; 
+                
+            }
+            
+            //ends timer after sorted data set is complete, calculates elapsed time
+            auto endQueryK = std::chrono::high_resolution_clock::now();
+            chrono::duration<double> total_time = endQueryK - startQueryK;
+            cout << "RangeQuery Cost: " << total_time.count() << " seconds" << endl;
+
+        } else if (experimentInput == 2) {
+            //query cost vary q
+            int minInput, maxInput, kInput;
+            kInput = 5; //5000 or 10000
+            //float kFloatInp; 
+            cout << "Query cost, vary q experiment" << endl;
+            cout << "In this experiment, k is set to 5000 and 10000 respectively" << endl;
+            
+            cout << "Please enter the (space separated) min and max hilbert values to search: " ;
+            cin >> minInput >> maxInput; 
+            //cout << "Now please enter k (0.02, 0.04, 0.06, 0.08, 0.1): " ;
+            //cin >> kFloatInp; 
+            cout << "Starting experiment... " << endl; 
+
+            auto startQueryQ = chrono::high_resolution_clock::now();
+            vector<Record> results = tree.querying(minInput, maxInput, kInput); 
+
+            /*for (size_t i = 0; i < results.size(); i++)
+                {
+                    cout << "results ID: " << results[i].id
+                    << ", Lat: " << results[i].lat
+                    << ", Lon: " << results[i].lon
+                    << ", Time: " << results[i].timestamp
+                    << ", Hilbert: " << results[i].hilbert << endl; 
+                    
+                }*/
+            
+            //ends timer after sorted data set is complete, calculates elapsed time
+            auto endQueryQ = std::chrono::high_resolution_clock::now();
+            chrono::duration<double> total_time = endQueryQ - startQueryQ;
+            cout << "RangeQuery Cost: " << total_time.count() << " seconds" << endl;
+            
+        } else { 
+            cout << "Please enter one of the experiments below.  " << endl;
+        }
+
+    } while(experimentInput != 4) ;
 
     //children debugging function call
     //print_children(btree);
 
     //tree.exportToDot("tree.dot");
     //cout << "DOT file generated: tree.dot\n";
-
+    file.close();
     return 0;
 }

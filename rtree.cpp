@@ -462,7 +462,7 @@ void b_plus_tree::splitInternal(internal_node& old_node, int insert_key, int ins
 }
 
 //range query implementation
-vector<Record> b_plus_tree::rangeQuery(int low, int high) {
+vector<Record> b_plus_tree::rangeQueryR(int low, int high) {
 
     //stores the results matching the query
     vector<Record> result;
