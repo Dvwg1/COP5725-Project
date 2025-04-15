@@ -517,7 +517,7 @@ vector<Record> b_plus_tree::rangeQueryR(int low, int high) {
 }
 
 //calls the remove recursive function, while setting merged status to false
-void  b_plus_tree::remove(int key) {
+void  b_plus_tree::removeR(int key) {
 
     bool merged = false;
     removeRecursive(root_page, key, merged);

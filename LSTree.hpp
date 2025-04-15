@@ -15,8 +15,8 @@
 using namespace std; 
 
 struct max_min_hilbert {
-    int min_hilbert;
-    int max_hilbert; 
+    long int min_hilbert;
+    long int max_hilbert; 
 } ; 
 
 
@@ -47,6 +47,8 @@ class ls_tree {
     void insertMoreRecords(const Record& rec); 
 
     void removeHilbert(const Record& rec);
+
+    vector<Record> getRecords(b_plus_tree& tree); 
     
 
 

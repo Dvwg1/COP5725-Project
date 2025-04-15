@@ -24,35 +24,15 @@ const string LS_ROOT_META_FILE = "ls_tree_pages/root.meta";
 
 
 //constructor
-ls_tree::ls_tree(const string& dir) : memoryTree("inMemoryTree"), handler(dir) {
-
+ls_tree::ls_tree(const string& dir) : memoryTree("/tmp/inMemoryTree"), handler(dir) {
+    // uses memory from /tmp
     fs::create_directory(dir);
 }
 
 
 
-
-/*void ls_tree::addToTree(b_plus_tree& btree, int key, const Record& rec) {
-    //if btree exists, then insert key and rec
-    //else create btree and insert it
-    
-}*/
-
 void ls_tree::addToTree(const string& treeName, int key, const Record& rec) {
     // Check if the tree exists
-    // if (levels.find(treeName) == levels.end()) {
-    //     // Create new tree if it doesn't exist
-    //     b_plus_tree btree(treeName); 
-    //     btree.insert(key,rec);
-    //     levels.insert({treeName, btree}); 
-    //     //levels[treeName] = btree;  // Assuming this constructor sets up the tree
-    // } else {
-    //     //cout << "this is wrong" << endl; 
-    //     levels[treeName].insert(key, rec);
-        
-    // }
-    // Insert into the existing tree
-    //levels[treeName].insert(key, rec);
 
     auto it = levels.find(treeName);
     if (it == levels.end()) {
@@ -65,27 +45,16 @@ void ls_tree::addToTree(const string& treeName, int key, const Record& rec) {
 
 }
 
-/*
-//used to save the root page id for recals
-void ls_tree::saveRoot() {
 
-    //opens root.meta file for reading
-    ofstream out(ROOT_META_FILE);
-
-    //reads in the value
-    out << root_page;
-} */
-
-
-//helper function to read last disk tree into memory
-vector<Record> getRecords(b_plus_tree& tree) {
+//helper function to read records from a tree
+vector<Record> ls_tree::getRecords(b_plus_tree& tree) {
     vector<Record> result;
     char buffer[PAGE_SIZE];
 
     page_handler& handler = tree.getHandler();
     int current = tree.getRootPage();
 
-    // Descend to first leaf
+    
     while (true) {
         handler.readPage(current, buffer);
 
@@ -98,7 +67,7 @@ vector<Record> getRecords(b_plus_tree& tree) {
         current = inode->children[0];
     }
 
-    // Traverse leaves
+    //returns leaves
     while (current != INVALID_PAGE) {
         handler.readPage(current, buffer);
         leaf_node* leaf = reinterpret_cast<leaf_node*>(buffer);
@@ -109,26 +78,24 @@ vector<Record> getRecords(b_plus_tree& tree) {
 
         current = leaf->next_leaf_page;
     }
-
     return result;
 }
 
 
 
 
-
+//insert memory tree from disk 
 void ls_tree::insertMemoryTree(const string& dir) {
     //check if levels is empty before getting last tree
     if (!levels.empty()) {
         b_plus_tree& lastTree = levels.rbegin()->second; 
         vector<Record> records = getRecords(lastTree); 
-        //memoryTree = b_plus_tree("inMemoryTree"); 
+        memoryTree = b_plus_tree("/tmp/inMemoryTree"); 
         isMemoryTree = true;
-        cout << "checking memoryTree " << endl;
+        //cout << "checking memoryTree " << endl;
 
         for (size_t i = 0; i < records.size(); i++)
         {
-            /* code */
             memoryTree.insert(records[i].hilbert, records[i]);
         }
         
@@ -146,7 +113,7 @@ void ls_tree::insertMemoryTree(const string& dir) {
     }
 }
 
-
+//range query used for experiments 
 vector<Record> ls_tree::querying(int low, int high, long unsigned int k) { //int k
 
     vector<Record> results;
@@ -227,8 +194,6 @@ vector<Record> ls_tree::querying(int low, int high, long unsigned int k) { //int
 
 void ls_tree::insertMoreRecords(const Record& rec) {
    //used to insert records after tree is built
-   cout << "size of levels: " << levels.size() << endl ;
-   //return; 
 
    //insert 5000 records from beginning of file
    int hilbert = rec.hilbert;
@@ -237,15 +202,17 @@ void ls_tree::insertMoreRecords(const Record& rec) {
    string strDCounter = to_string(directoryCounter);
    string directroy = LSTreeDir + strDCounter;
 
-   addToTree(directroy, hilbert, rec);
+   //cout << "going to add to directory: " << directroy << endl;
 
+   addToTree(directroy, hilbert, rec);
+    //updates directory to add record to 
    directoryCounter++; 
 
    for (size_t i = 1; i < levels.size(); i++)
    {
     int flip = rand() % 2; 
     if (flip == 1){
-        cout << "coin flip at: " << i << " is a: " << flip << endl; 
+        //cout << "coin flip at: " << i << " is a: " << flip << endl; 
         break;
         
     }
@@ -265,12 +232,37 @@ void ls_tree::insertMoreRecords(const Record& rec) {
 
 void ls_tree::removeHilbert(const Record& rec) {
     //to remove from ls-tree based on hilbert value
-    /*for (size_t i = 0; i < levels.size(); i++) {
-        levels
-    }*/
 
+    if(isMemoryTree) {
+        vector<Record> memResults = memoryTree.rangeQueryR(rec.hilbert, rec.hilbert);
+        int count = 0;
+        for(const auto& r : memResults) {
+            if (strcmp(rec.id, r.id) == 0) {
+                memoryTree.removeR(r.hilbert);
+                //cout << "removed " << r.hilbert << "from memorytree with id: " << r.id << endl ;
+                //break; 
+                count++;
+            }
+        }
+        /*if (count ==0) { 
+            cout << "[mem] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
+        }*/
+    }
+
+    //int count = 0; 
     for (auto it = levels.begin(); it!=levels.end(); it++) {
-        it->second.remove(rec.hilbert); 
+        vector <Record> diskResults = it->second.rangeQueryR(rec.hilbert, rec.hilbert); 
+        for(const auto& r : diskResults) {
+            if (strcmp(rec.id, r.id) == 0) {
+                it->second.removeR(r.hilbert); 
+                //cout << "removed " << r.hilbert << "from disktree with id: " << r.id << endl ;
+                break; 
+            }
+        }
+
+        /*if (count ==0) { 
+            cout << "[mem] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
+        }*/
     }
 
 }

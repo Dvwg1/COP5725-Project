@@ -128,9 +128,9 @@ int main() {
 	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
 
     //children debugging function call
-    print_children(tree);
+    //print_children(tree);
 
-    tree.remove(1364);
+    tree.removeR(1364);
 
 
     tree.exportToDot("tree.dot");
