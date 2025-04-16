@@ -144,7 +144,7 @@ int main() {
 
             Record test_r;
 
-            //modified from how a tree is built, except its only gonna read in the first 25000
+            //modified from how a tree is built, except its only gonna read in the first 100000
             //records and shove them into a vector (hopefully big enough)
             while (getline(file, line) && num_records2 < 1000000) {
 
@@ -170,7 +170,7 @@ int main() {
         
                         //pushes back the record
 
-                        cout << "record being inserted" << test_r.hilbert << endl;
+                        //cout << "record being inserted" << test_r.hilbert << endl;
                         records_to_be_shuffled.push_back(test_r);
         
                         //incremente record counter
@@ -197,15 +197,14 @@ int main() {
             shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
             shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
 
-
-
-            //after data found and shuffled, insertion counter starts tbh
-            auto startInsert = chrono::high_resolution_clock::now();
-
             //capture time for every 50 insertions
             vector<double> insertTimes; 
             int increments = 50; 
-            for (int i = 0; i < 5001; i++)
+
+            //start clock
+            auto startInsert = chrono::high_resolution_clock::now();
+
+            for (int i = 0; i < 5000; i++)
             {
                    //incremental time keeping
                     if (i == increments) {
@@ -225,7 +224,7 @@ int main() {
                     tree.insert(test_r.hilbert, test_r, false);
 
                     num_records++;
-                    cout << "record just inserted: " << test_r.hilbert << endl; 
+                    //cout << "record just inserted: " << test_r.hilbert << endl; 
             }
 
             //cout << "num records after insertion: " << totalNumRecords << endl; 
@@ -233,7 +232,7 @@ int main() {
             //ends timer after sorted data set is complete, calculates elapsed time
             auto endInsert = std::chrono::high_resolution_clock::now();
             chrono::duration<double> total_timeInsert = endInsert - startInsert;
-            cout << "Insertion Cost: " << total_timeInsert.count() << " seconds" << endl;
+            cout << "Increment at 5000. Insertion Cost: " << total_timeInsert.count() << " seconds" << endl;
 
             cout << "num records after insertion: " << num_records << endl; 
 
@@ -244,18 +243,20 @@ int main() {
             cout << endl << "Now Cost of Deletion will be recorded. " << endl; 
 
 
-            chrono::duration<double> total_timeIncrement;
             vector<double> deletionsTimes; 
             //reset increments for deletions
             increments = 50; 
-            auto startDeletion = std::chrono::high_resolution_clock::now();
 
-            for (int i = 0; i < 5001; i++)
+            //start clock
+            auto startDeletion = std::chrono::high_resolution_clock::now();
+            //chrono::duration<double> total_timeIncrement;
+   
+            for (int i = 0; i < 5000; i++)
             {
-               
+                  
                 if (i == increments) {
                     auto endIncrement = std::chrono::high_resolution_clock::now();
-                    total_timeIncrement = endIncrement - startInsert;
+                    chrono::duration<double> total_timeIncrement = endIncrement - startDeletion;
                     deletionsTimes.push_back(total_timeIncrement.count()); 
                     if (increments % 1000 == 0) //print out when 1000s
                         cout << "increment at " << i << " is " << total_timeIncrement.count() << endl ;
@@ -265,14 +266,17 @@ int main() {
                 num_records--;
             }
             cout << "num records after deletion: " << num_records << endl; 
-
-
+   
+   
+               
             auto endDeletion = std::chrono::high_resolution_clock::now();
-            cout << "Deletion Cost: " << total_timeIncrement.count() << " seconds" << endl;
-            
-
+   
+            chrono::duration<double> total_timeDeletion = endDeletion - startDeletion;
+   
+   
+            cout << "Increment at 5000. Total Deletion Cost: " << total_timeDeletion.count() << " seconds" << endl;
+        
         }
-     
 
     } while(experimentInput != 1 || experimentInput != 2) ;
 
