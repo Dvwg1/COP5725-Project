@@ -122,6 +122,9 @@ int main() {
                 r.hilbert = stoi(hStr);
 
                 tree.insert(r.hilbert, r);
+
+                //increments record counter
+                num_records++;
             } 
             
             //error catching for debugging
@@ -212,7 +215,7 @@ int main() {
         
                         //pushes back the record
 
-                        cout << "record being inserted" << test_r.hilbert << endl;
+                        //cout << "record being inserted" << test_r.hilbert << endl;
                         records_to_be_shuffled.push_back(test_r);
         
                         //incremente record counter
@@ -246,7 +249,7 @@ int main() {
             //start clock
             auto startInsert = chrono::high_resolution_clock::now();
 
-            for (int i = 0; i < 5001; i++)
+            for (int i = 0; i < 5000; i++)
             {
                    //incremental time keeping
                     if (i == increments) {
@@ -274,7 +277,7 @@ int main() {
             //ends timer after sorted data set is complete, calculates elapsed time
             auto endInsert = std::chrono::high_resolution_clock::now();
             chrono::duration<double> total_timeInsert = endInsert - startInsert;
-            cout << "Insertion Cost: " << total_timeInsert.count() << " seconds" << endl;
+            cout << "Increment at 5000. Insertion Cost: " << total_timeInsert.count() << " seconds" << endl;
 
             cout << "num records after insertion: " << num_records << endl; 
 
@@ -294,12 +297,12 @@ int main() {
             auto startDeletion = std::chrono::high_resolution_clock::now();
             //chrono::duration<double> total_timeIncrement;
 
-            for (int i = 0; i < 5001; i++)
+            for (int i = 0; i < 5000; i++)
             {
                
                 if (i == increments) {
                     auto endIncrement = std::chrono::high_resolution_clock::now();
-                    chrono::duration<double> total_timeIncrement = endIncrement - startInsert;
+                    chrono::duration<double> total_timeIncrement = endIncrement - startDeletion;
                     deletionsTimes.push_back(total_timeIncrement.count()); 
                     if (increments % 1000 == 0) //print out when 1000s
                         cout << "increment at " << i << " is " << total_timeIncrement.count() << endl ;
@@ -317,12 +320,19 @@ int main() {
             chrono::duration<double> total_timeDeletion = endDeletion - startDeletion;
 
 
-            cout << "Deletion Cost: " << total_timeDeletion.count() << " seconds" << endl;
-            
+            cout << "Increment at 5000. Total Deletion Cost: " << total_timeDeletion.count() << " seconds" << endl;            
         }
      
 
     } while(experimentInput != 1 || experimentInput != 2) ;
+
+
+    //cleans up disk directory
+    int status = system("rm -rf tree_pages");
+    if (status == 0)
+        cout << "removed tree_pages" << endl; 
+    else
+        cerr << "error in cleanup" << endl;
 
     return 0;
 }
