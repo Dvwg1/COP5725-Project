@@ -14,6 +14,11 @@
 
 using namespace std; 
 
+struct max_min_hilbert {
+    long int min_hilbert;
+    long int max_hilbert; 
+} ; 
+
 
 class ls_tree {
     public:
@@ -21,7 +26,7 @@ class ls_tree {
     ls_tree(const string& dir); 
 
     map<string, b_plus_tree> levels;
-    //vector<b_plus_tree> levels; 
+    vector<max_min_hilbert> maxMin; 
 
     //used to get root and handler info for main
     int getRootPage()  { return root_page; }
@@ -30,13 +35,20 @@ class ls_tree {
     b_plus_tree memoryTree;
     bool isMemoryTree = false; 
 
-    void addTree(const string& baseDir);
     b_plus_tree& getTree(size_t index);
     size_t size() const; 
     //void addToTree(b_plus_tree& btree, int key, const Record& rec);
-    void addToTree(const std::string& treeName, int key, const Record& rec); 
+    void addToTree(const string& treeName, int key, const Record& rec); 
 
-    void insertMemoryTree();
+    void insertMemoryTree(const string& dir);
+
+    vector<Record> querying(int low, int high, long unsigned int k); //int k 
+
+    void insertMoreRecords(const Record& rec); 
+
+    void removeHilbert(const Record& rec);
+
+    vector<Record> getRecords(b_plus_tree& tree); 
     
 
 
