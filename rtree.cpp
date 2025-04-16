@@ -462,7 +462,7 @@ void b_plus_tree::splitInternal(internal_node& old_node, int insert_key, int ins
 }
 
 //range query implementation
-vector<Record> b_plus_tree::rangeQuery(int low, int high) {
+vector<Record> b_plus_tree::rangeQueryR(int low, int high) {
 
     //stores the results matching the query
     vector<Record> result;
@@ -517,7 +517,7 @@ vector<Record> b_plus_tree::rangeQuery(int low, int high) {
 }
 
 //calls the remove recursive function, while setting merged status to false
-void  b_plus_tree::remove(int key) {
+void  b_plus_tree::removeR(int key) {
 
     bool merged = false;
     removeRecursive(root_page, key, merged);

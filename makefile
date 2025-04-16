@@ -34,3 +34,4 @@ clean:
 	rm -rf tree_pages/ *.dot *.png
 	rm -rf ls_tree_pages/ lstree inMemoryTree/
 	rm -rf RStree_pages
+	rm -rf /tmp/inMemoryTree

@@ -319,10 +319,10 @@ int main() {
 
             chrono::duration<double> total_timeDeletion = endDeletion - startDeletion;
 
-
             cout << "Increment at 5000. Total Deletion Cost: " << total_timeDeletion.count() << " seconds" << endl;            
         }
      
+
 
     } while(experimentInput != 1 || experimentInput != 2) ;
 
