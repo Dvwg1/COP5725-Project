@@ -17,7 +17,7 @@ r-tree into a memory based RS-tree, before modifying it to store leaves on disk.
 
 based on the r-tree that was in turn based on [1]
 
-[2] as well as the slidesserved as the inspiration for how the pointer to id and id to pointer system works,
+[2] as well as the slides served as the inspiration for how the pointer to id and id to pointer system works,
 through the use of tagged pointers
 
 [5][6] are used as inspiration for the disk based implementation of the B+ tree.
@@ -57,7 +57,7 @@ constexpr int MAX_LEAF_RECORDS = 100;
 constexpr int MAX_INTERNAL_KEYS = 15;
 
 //a -1 page will be used as an invalid check
-constexpr int INVALID_PAGE = -1;
+constexpr long int INVALID_PAGE = -1;
 
 //defines external variable name for needed root file 
 extern const string ROOT_META_FILE;
@@ -79,6 +79,10 @@ struct Record {
     char timestamp[29];
 
     int hilbert;
+
+    //used to mark if a record has been reported/rejected
+    //by default, none have been reported/rejected yet
+    bool disabled = false;
 };
 
 //used in conjunction with push
@@ -110,7 +114,7 @@ struct disk_leaf_node {
     int is_leaf = 1;
 
     int record_num = 0;
-    int next_leaf_page = INVALID_PAGE;
+    long int next_leaf_page = INVALID_PAGE;
 
     //max amount of records per leaf node
     Record records[MAX_LEAF_RECORDS];
@@ -140,9 +144,8 @@ struct internal_node {
 
 };
 
-
 //class used to handle pages for inserts, writes, reads. base of I/O functionality
-//curcial for creating, using, and erasing leaf nodes on disk
+//crucial for creating, using, and erasing leaf nodes on disk
 class page_handler {
 
 public:
@@ -154,20 +157,19 @@ public:
     int pageIncrementer();
     
     //disk read/write operations
-    void writePage(int pageID, const void* data, size_t dataSize);
-    void readPage(int pageID, void* buffer);
+    void writePage(long int pageID, const void* data, size_t dataSize);
+    void readPage(long int pageID, void* buffer);
 
     //gets the page path for further operations
-    string getPagePath(int pageID);
+    string getPagePath(long int pageID);
 
 private:
     //variables
     string directory;
-    int next_page_id;
+    long int next_page_id;
 
     void loadNextPageID();
 };
-
 
 //our B+ tree class, containing its needed functions to be created and operated upon
 class b_plus_tree {
@@ -183,21 +185,25 @@ public:
     //same as in r-tree, but modified for memory applications
     void insert(int key, const Record& rec, bool build_mode);
     void remove(int key);
-    vector<Record> rangeQuery(int low, int high);
+    vector<Record> rangeQuery(int low, int high, long int );
 
     //visualizing
     void printTree();
 
     //used to get root and handler info for main
-    int getRootPage()  { return root_page; }
+    long int getRootPage()  { return root_page; }
     page_handler& getHandler()  { return handler; }
 
     //sampling related functions
-    int getSubtreeRecordCount(void* node);
+    long int getSubtreeRecordCount(void* node);
+
+    long int getNonDisabledSubtreeRecordCount(void* node);
 
     void buildAllSamples();
 
-    //void exportToDot(const string& filename);
+    //Wang et al based query function
+    vector<Record> SampleFirstRS(int low, int high, size_t k);
+
 
 private:
 
@@ -206,11 +212,11 @@ private:
 
     /*translation helper functions*/
 
-    //given pointer, returns corresponding page id
-    inline int pointerToPageID(void* ptr) const;
+    //given pointer, returns corresponding page id./s
+    inline long int pointerToPageID(void* ptr) const;
 
     //given page id, returns corresponding pointer
-    inline void* pageIDToPointer(int id) const;
+    inline void* pageIDToPointer(long int id) const;
 
     //verifier of pointer
     inline bool isPointerValid(void * ptr) const;
@@ -226,22 +232,23 @@ private:
 
     void removeRecursive(void * node, int key, bool& merged, Record& deleted_record);
 
-    
     /*disk related functionality*/
     //b plus tree will have its own instance of handler
     page_handler handler;
 
     //stores the root page id on disk
-    int root_page;
+    long int root_page;
 
     int createDiskLeaf();
 
-    void splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, int & new_page_id);
+    void splitDiskLeaf(disk_leaf_node & old_node, const Record & record, int & promoted_key, long int & new_page_id);
 
     void saveRoot();
 
     //sampling related functions
-    int recursiveNodeSubtreeCounter(void* node);
+    long int recursiveNodeSubtreeCounter(void* node);
+
+    long int recursiveNonDisabledSubtreeCounter(void* node);
 
     vector<Record> BuildSamples(void* node, int d);
 
@@ -256,6 +263,8 @@ private:
     //replenishes buffers recursively
     void replenishSamples(internal_node* node);
 
+    //re-enables all disabled records
+    void reenableAllRecordsInSubtree(void* node);
     
 };
 
