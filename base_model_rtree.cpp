@@ -14,6 +14,7 @@ Used in some experiments as is
 #include <string>
 #include <queue>
 #include <chrono>
+#include <random>
 
 using namespace std;
 
@@ -102,8 +103,8 @@ int main() {
                 strncpy(r.id, idStr.c_str(), sizeof(r.id));
                 r.id[sizeof(r.id) - 1] = '\0';
 
-                r.lon = stof(latStr);
-                r.lat = stof(lonStr);
+                r.lon = stof(lonStr);
+                r.lat = stof(latStr);
                 strncpy(r.timestamp, tsStr.c_str(), sizeof(r.timestamp));
                 r.timestamp[sizeof(r.timestamp) - 1] = '\0';
                 r.hilbert = stoi(hStr);
@@ -129,8 +130,6 @@ int main() {
 
     //children debugging function call
     //print_children(tree);
-
-    tree.removeR(1364);
 
 
     tree.exportToDot("tree.dot");
