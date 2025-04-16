@@ -96,7 +96,8 @@ int main() {
 	auto end = std::chrono::high_resolution_clock::now();
 	chrono::duration<double> total_time = end - start;
     cout << "RS-Tree built from CSV and stored on disk.\n";
-	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
+    cout << "records loaded in: " << num_records << endl;
+	cout << "Total time elapsed: " << total_time.count() << " seconds" << endl;
     cout << "Internal nodes loaded into memory, volatile" << endl;
 
 
@@ -185,7 +186,7 @@ int main() {
                 } 
             }
 
-            cout << "num_records2" << num_records2 << endl;
+            //cout << "num_records2" << num_records2 << endl;
         
         
             file.close();
