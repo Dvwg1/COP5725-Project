@@ -120,31 +120,31 @@ vector<Record> ls_tree::querying(int low, int high, long unsigned int k) { //int
     //
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     if (isMemoryTree) {
-        cout << "inMemorytree" << endl;
-        cout << memoryTree.getRootPage() << " yikes" << endl; 
+        //cout << "inMemorytree" << endl;
+        //cout << memoryTree.getRootPage() << " yikes" << endl; 
         //if(low < maxMin.back().max_hilbert || high > maxMin.back().min_hilbert)
         if (low <= maxMin.back().max_hilbert && high >= maxMin.back().min_hilbert)
         {
             //query the memory tree first
-            cout << "in if statement" << endl; 
+            //cout << "in if statement" << endl; 
             vector<Record> memoryResults = memoryTree.rangeQueryR(low, high);
-            cout << "ending rangeQuery and onto shuffle" << endl; 
+            //cout << "ending rangeQuery and onto shuffle" << endl; 
             //vector<Record> rs = memoryTree.rangeQuery(32876, 100000);
             //vector<Record> rs = memoryTree.rangeQuery(0, 100000);
             
             shuffle (memoryResults.begin(), memoryResults.end(), default_random_engine(seed));
             //std::shuffle(memResults.begin(), memResults.end(), std::mt19937{std::random_device{}()});
-            cout << "size of memoryTree: " << memoryResults.size() << endl; 
+            //cout << "size of memoryTree: " << memoryResults.size() << endl; 
 
             //check if memoryTree works
-            cout << "Results from inMemoryTree:\n";
+            //cout << "Results from inMemoryTree:\n";
             for (size_t i = 0; i < memoryResults.size(); i++)
             {
-                cout << "ID: " << memoryResults[i].id
+                /*cout << "ID: " << memoryResults[i].id
                 << ", Lat: " << memoryResults[i].lat
                 << ", Lon: " << memoryResults[i].lon
                 << ", Time: " << memoryResults[i].timestamp
-                << ", Hilbert: " << memoryResults[i].hilbert << endl; 
+                << ", Hilbert: " << memoryResults[i].hilbert << endl; */
 
                 results.push_back(memoryResults[i]); 
                 if(results.size() == k) {
@@ -158,7 +158,7 @@ vector<Record> ls_tree::querying(int low, int high, long unsigned int k) { //int
 
     //now check disk based trees
     //i is for going from smallest tree to biggest tree (reverse)
-    cout << "done checking MemTree and going to disk trees" << endl;
+    //cout << "done checking MemTree and going to disk trees" << endl;
     size_t i = maxMin.size() - 1; 
     //looping through a map
     //https://stackoverflow.com/questions/26281979/how-do-you-loop-through-a-stdmap
@@ -239,30 +239,30 @@ void ls_tree::removeHilbert(const Record& rec) {
         for(const auto& r : memResults) {
             if (strcmp(rec.id, r.id) == 0) {
                 memoryTree.removeR(r.hilbert);
-                //cout << "removed " << r.hilbert << "from memorytree with id: " << r.id << endl ;
-                //break; 
+                cout << "removed " << r.hilbert << "from memorytree with id: " << r.id << endl ;
+                break; 
                 count++;
             }
         }
-        /*if (count ==0) { 
+        if (count ==0) { 
             cout << "[mem] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
-        }*/
+        }
     }
 
-    //int count = 0; 
+    int count = 0; 
     for (auto it = levels.begin(); it!=levels.end(); it++) {
         vector <Record> diskResults = it->second.rangeQueryR(rec.hilbert, rec.hilbert); 
         for(const auto& r : diskResults) {
             if (strcmp(rec.id, r.id) == 0) {
                 it->second.removeR(r.hilbert); 
-                //cout << "removed " << r.hilbert << "from disktree with id: " << r.id << endl ;
+                cout << "removed " << r.hilbert << "from disktree with id: " << r.id << endl ;
                 break; 
             }
         }
 
-        /*if (count ==0) { 
-            cout << "[mem] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
-        }*/
+        if (count ==0) { 
+            cout << "[disk] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
+        }
     }
 
 }

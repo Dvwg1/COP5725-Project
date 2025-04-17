@@ -109,7 +109,7 @@ int main() {
     //ONCE WHOLE FILE IS READ, CREATE SMALLER TREES FROM SAMPLING (COIN-FLIP)
     //int numRecords = counter; 
     cout << "num of records in csv: " << numRecords << endl; 
-    cout << "finished first tree" << endl; 
+    //cout << "finished first tree" << endl; 
     int totalNumRecords = numRecords; 
     // numRecords = numRecords / 2; 
     // directoryCounter++;
@@ -124,7 +124,7 @@ int main() {
     vector<string> prev_records; 
     //getline(file, line); // Skip header    
     
-    cout << "starting trees after btree0 " << endl; 
+    //cout << "starting trees after btree0 " << endl; 
 
     //build the next trees
     //continues until less than 256K nodes (Page 7, Wang et al.)
@@ -186,7 +186,9 @@ int main() {
         cout << "4. Update cost (FYI this experiment will end program and tree will have to be built again): " << endl;
         cout << "5. Exit program" << endl; 
         cout << "Please enter the experiment to run: ";
-        cin >> experimentInput; 
+        while (!(cin >> experimentInput)) {
+            cout << "Invalid input. Please enter an integer: ";
+        }
         if (experimentInput == 5) 
             break; 
         else if (experimentInput == 4) {
@@ -198,7 +200,7 @@ int main() {
             // file.clear();
             // file.seekg(0);
             // getline(file, line); //skip header
-            auto startInsert = chrono::high_resolution_clock::now();
+            
 
             b_plus_tree& firstTree = tree.levels.begin()->second;
             //get records then shuffle, then insert 500 
@@ -208,7 +210,8 @@ int main() {
             //capture time for every 50 insertions
             vector<double> insertTimes; 
             int increments = 50; 
-            for (int i = 0; i < 5000; i++)
+            auto startInsert = chrono::high_resolution_clock::now();
+            for (int i = 0; i < 5001; i++)
             {
                     //insert into next tree
                     //tree.addToTree(directroy, firstTreeRecords[i].hilbert, firstTreeRecords[i]);
@@ -228,9 +231,9 @@ int main() {
             //cout << "num records after insertion: " << totalNumRecords << endl; 
 
             //ends timer after sorted data set is complete, calculates elapsed time
-            auto endInsert = std::chrono::high_resolution_clock::now();
-            chrono::duration<double> total_timeInsert = endInsert - startInsert;
-            cout << "Insertion Cost: " << total_timeInsert.count() << " seconds" << endl;
+            //auto endInsert = std::chrono::high_resolution_clock::now();
+            //chrono::duration<double> total_timeInsert = endInsert - startInsert;
+            cout << "Insertion Cost experiment over. " << endl;
 
             vector<Record> treeAfterInsert = tree.getRecords(tree.levels.begin()->second);
             cout << "num records after insertion: " << treeAfterInsert.size() << endl; 
@@ -241,19 +244,19 @@ int main() {
 
             //now after inserting those records, they need to be removed. 
             cout << endl << "Now Cost of Deletion will be recorded. " << endl; 
-            auto startDeletion = std::chrono::high_resolution_clock::now();
     
             vector<double> deletionsTimes; 
             //reset increments for deletions
             increments = 50; 
-            for (int i = 0; i < 5000; i++)
+            auto startDeletion = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < 5001; i++)
             {
                     //insert into next tree
                     //tree.addToTree(directroy, firstTreeRecords[i].hilbert, firstTreeRecords[i]);
                     //tree.insertMoreRecords(firstTreeRecords[i]); 
                 if (i == increments) {
                     auto endIncrement = std::chrono::high_resolution_clock::now();
-                    chrono::duration<double> total_timeIncrement = endIncrement - startInsert;
+                    chrono::duration<double> total_timeIncrement = endIncrement - startDeletion;
                     deletionsTimes.push_back(total_timeIncrement.count()); 
                     if (increments % 1000 == 0) //print out when 1000s
                         cout << "increment at " << i << " is " << total_timeIncrement.count() << endl ;
@@ -264,32 +267,46 @@ int main() {
             }
 
             vector<Record> treeAfterDelete = tree.getRecords(tree.levels.begin()->second);
-            cout << "num records after deletion: " << treeAfterDelete.size() << endl; 
+            cout << "num records after deletion: " << totalNumRecords << endl; 
 
 
-            auto endDeletion = std::chrono::high_resolution_clock::now();
-            chrono::duration<double> total_timeDeletion = endDeletion - startDeletion;
-            cout << "Deletion Cost: " << total_timeDeletion.count() << " seconds" << endl;
+            //auto endDeletion = std::chrono::high_resolution_clock::now();
+            //chrono::duration<double> total_timeDeletion = endDeletion - startDeletion;
+            cout << "Deletion Cost experiment over. " << endl;
             
 
         }
         else if (experimentInput == 1) {
             //query cost vary k 
-            int minInput, maxInput, kInput; 
+            int minInput = -1;
+            int maxInput =-1 ;
+            int kInput = -1;
             float kFloatInp; 
             cout << "Query cost, vary k experiment" << endl;
             
             //input for query range and k
-            cout << "Please enter the (space separated) min and max hilbert values to search: " ;
-            cin >> minInput >> maxInput; 
+            cout << "Please enter the min hilbert values to search: " ;
+            while (!(cin >> minInput)) {
+                cout << "Invalid input. Please enter an integer: ";
+            }
+            cout << "Please enter the max hilbert values to search: " ;
+            while (!(cin >> minInput)) {
+                cout << "Invalid input. Please enter an integer: ";
+                cin >> minInput;
+            }
             cout << "Now please enter k (0.02, 0.04, 0.06, 0.08, 0.1): " ;
-            cin >> kFloatInp; 
+            while (!(cin >> kFloatInp)) {
+                cout << "Invalid input. Please enter one (0.02, 0.04, 0.06, 0.08, 0.1): ";
+                cin >> kFloatInp; 
+            }
             kInput = totalNumRecords * kFloatInp; 
-            cout << kInput << endl; 
+            //cout << kInput << endl; 
+            cout << "Starting experiment... " << endl; 
+
 
             auto startQueryK = chrono::high_resolution_clock::now();
             vector<Record> results = tree.querying(minInput, maxInput, kInput); 
-            cout << "getting out of querying" << endl; 
+            //cout << "getting out of querying" << endl; 
 
             //printed out for smaller values and testing
             /*for (size_t i = 0; i < results.size(); i++)
@@ -309,16 +326,30 @@ int main() {
 
         } else if (experimentInput == 2) {
             //query cost vary q
-            int minInput, maxInput, kInput;
+            int minInput = -1;
+            int maxInput =-1 ;
+            int kInput = -1;
             //kInput = 5000; //5000 or 10000
             cout << "Query cost, vary q experiment" << endl;
             cout << "In this experiment, k is set to 5000 and 10000 respectively" << endl;
             
-            cout << "Please enter the (space separated) min and max hilbert values to search: " ;
-            cin >> minInput >> maxInput; 
+            cout << "Please enter the min hilbert values to search: " ;
+            //https://www.geeksforgeeks.org/how-to-validate-user-input-in-cpp/
+            while (!(cin >> minInput)) {
+                cout << "Invalid input. Please enter an integer: ";
+            }
+            cout << "Please enter the max hilbert values to search: " ;
+            while (!(cin >> minInput)) {
+                cout << "Invalid input. Please enter an integer: ";
+            }
             //inputed so easier when running experiments
             cout << "Please input k as either 5000 or 10000: " ; 
-            cin >> kInput; 
+            while (!(cin >> kInput)) {
+                if(kInput != 5000 || kInput != 10000){
+                    break;
+                }
+                cout << "Invalid input. Please enter one (0.02, 0.04, 0.06, 0.08, 0.1): ";
+            }
             cout << "Starting experiment... " << endl; 
 
             auto startQueryQ = chrono::high_resolution_clock::now();
