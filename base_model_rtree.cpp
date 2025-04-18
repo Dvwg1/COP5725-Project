@@ -238,11 +238,7 @@ int main() {
 
             //shuffle
             shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-
+            
             //capture time for every 50 insertions
             vector<double> insertTimes; 
             int increments = 50; 
