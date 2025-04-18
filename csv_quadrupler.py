@@ -4,8 +4,8 @@ used to 4x the OSM data set, custom written
 
 from tqdm import tqdm
 
-original_file = "osm_na_node_data.csv"
-new_file = "osm_na_node_data_4x.csv"
+original_file = "osm_dc.csv"
+new_file = "osm_dc_4x.csv"
 
 
 #open the original csv
