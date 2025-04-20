@@ -141,7 +141,8 @@ int main() {
 	auto end = std::chrono::high_resolution_clock::now();
 	chrono::duration<double> total_time = end - start;
     cout << "R-Tree built from CSV and stored on disk.\n";
-	cout << "Total sorting time elapsed: " << total_time.count() << " seconds" << endl;
+    cout << "records loaded in: " << num_records << endl;
+	cout << "Total time elapsed: " << total_time.count() << " seconds" << endl;
     cout << "Internal nodes loaded into memory, volatile" << endl;
 
 
@@ -230,18 +231,14 @@ int main() {
                 } 
             }
 
-            cout << "num_records2" << num_records2 << endl;
+            //cout << "num_records2" << num_records2 << endl;
         
         
             file.close();
 
             //shuffle
             shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-            shuffle(records_to_be_shuffled.begin(), records_to_be_shuffled.end(), default_random_engine(seed));
-
+            
             //capture time for every 50 insertions
             vector<double> insertTimes; 
             int increments = 50; 
@@ -308,7 +305,7 @@ int main() {
                         cout << "increment at " << i << " is " << total_timeIncrement.count() << endl ;
                     increments += 50; 
                 }
-                tree.remove(records_to_be_shuffled[i].hilbert); 
+                tree.removeR(records_to_be_shuffled[i].hilbert); 
                 num_records--;
             }
             cout << "num records after deletion: " << num_records << endl; 

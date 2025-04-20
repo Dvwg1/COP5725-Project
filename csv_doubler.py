@@ -1,11 +1,11 @@
 """
-used to 4x the OSM data set, custom written
+used to 2x the OSM data set, custom written
 """
 
 from tqdm import tqdm
 
 original_file = "osm_dc.csv"
-new_file = "osm_dc_4x.csv"
+new_file = "osm_dc_2x.csv"
 
 
 #open the original csv
@@ -18,7 +18,7 @@ with open(new_file, 'w', encoding='utf-8') as dst:
     dst.write(header)
 
     #write 4 times, ie quadrupling
-    for i in range(4):
+    for i in range(2):
         print(f"Writing pass {i+1}/4...")
         with open(original_file, 'r', encoding='utf-8', errors='ignore') as src:
             next(src)  # skip header again

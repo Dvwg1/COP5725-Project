@@ -4,8 +4,8 @@ used to 0.5x the OSM data set, custom written
 
 from tqdm import tqdm
 
-original_file = "osm_na_node_data.csv"
-new_file = "osm_na_node_data_half.csv"
+original_file = "osm_dc.csv"
+new_file = "osm_dc_half.csv"
 
 #get the total number of lines
 with open(original_file, 'r', encoding='utf-8', errors='ignore') as src:
