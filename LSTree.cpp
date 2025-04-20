@@ -239,30 +239,30 @@ void ls_tree::removeHilbert(const Record& rec) {
         for(const auto& r : memResults) {
             if (strcmp(rec.id, r.id) == 0) {
                 memoryTree.removeR(r.hilbert);
-                cout << "removed " << r.hilbert << "from memorytree with id: " << r.id << endl ;
+                //cout << "removed " << r.hilbert << "from memorytree with id: " << r.id << endl ;
                 break; 
                 count++;
             }
         }
-        if (count ==0) { 
-            cout << "[mem] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
-        }
+        /*if (count ==0) { 
+            //cout << "[mem] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
+        }*/
     }
 
-    int count = 0; 
+    //int count = 0; 
     for (auto it = levels.begin(); it!=levels.end(); it++) {
         vector <Record> diskResults = it->second.rangeQueryR(rec.hilbert, rec.hilbert); 
         for(const auto& r : diskResults) {
             if (strcmp(rec.id, r.id) == 0) {
                 it->second.removeR(r.hilbert); 
-                cout << "removed " << r.hilbert << "from disktree with id: " << r.id << endl ;
+                //cout << "removed " << r.hilbert << "from disktree with id: " << r.id << endl ;
                 break; 
             }
         }
 
-        if (count ==0) { 
+        /*if (count ==0) { 
             cout << "[disk] id: " << rec.id << "could not find: " << rec.hilbert << "/ id: " << endl;
-        }
+        }*/
     }
 
 }
