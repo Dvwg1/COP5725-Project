@@ -1,8 +1,10 @@
 
-
-/*This program is from geeksforgeeks and was
+/*This code was adapted rom geeksforgeeks and was
  updated to include the information for our 
  LS and RS trees based on Hilbert values.
+
+ Memory based implementation, is later modified into a disk based implementation
+ Further used in RS and LS tree implementations
 
  Reference: https://www.geeksforgeeks.org/cpp-program-to-implement-b-plus-tree/
 

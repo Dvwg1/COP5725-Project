@@ -379,5 +379,22 @@ int main() {
 
 
     file.close();
+
+
+    //cleans up disk directory
+    int status1 = system("rm -rf ls_tree_pages");
+    if (status1 == 0)
+        cout << "removed ls_tree_pages" << endl; 
+    else
+        cerr << "error in cleanup" << endl;
+
+      //cleans up memory directory
+      int status2 = system("rm -rf /tmp/inMemoryTree");
+      if (status2 == 0)
+          cout << "removed /tmp/inMemoryTree" << endl; 
+      else
+          cerr << "error in cleanup" << endl;
+  
+
     return 0;
 }
