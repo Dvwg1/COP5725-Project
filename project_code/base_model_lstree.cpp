@@ -36,10 +36,6 @@ int main() {
         return 1;
     }
 
-    //string numRecord;
-    //cout << "Enter the number of records in this file: ";
-    //getline(cin, numRecord);
-    //divided by 4 to start since each num has 50% chance to be entered in LSTree
     int numRecords = 0;
 
     //letting user know index construction experiment has begun
@@ -117,12 +113,7 @@ int main() {
     // directroy = LSTreeDir + strDCounter; 
     tree.maxMin.push_back(treesMaxMin); 
 
-    //get back to top of file
-    //https://stackoverflow.com/questions/5343173/returning-to-beginning-of-file-after-getline
-    //file.clear();
-    //file.seekg(0); 
     vector<string> prev_records; 
-    //getline(file, line); // Skip header    
     
     //cout << "starting trees after btree0 " << endl; 
 
@@ -134,7 +125,6 @@ int main() {
         directoryCounter++;
         strDCounter = to_string(directoryCounter);
         directroy = LSTreeDir + strDCounter; 
-        //tree.maxMin.push_back(treesMaxMin); 
         //cout << "Inserting to " << directroy << endl; 
 
         b_plus_tree& prevTree = tree.levels.rbegin()->second;
@@ -195,11 +185,6 @@ int main() {
             //UPDATE COST EXPERIMENT (INSERTIONS AND DELETIONS)
             cout << "Update Cost experiment now beginning" << endl ;
             cout << "Now inserting 5000 records into LS-Tree" << endl; 
-            //counter = 0; 
-            //insert 5000 records into tree
-            // file.clear();
-            // file.seekg(0);
-            // getline(file, line); //skip header
             
 
             b_plus_tree& firstTree = tree.levels.begin()->second;

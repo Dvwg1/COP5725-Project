@@ -133,7 +133,6 @@ vector<Record> ls_tree::querying(int low, int high, long unsigned int k) { //int
             //vector<Record> rs = memoryTree.rangeQuery(0, 100000);
             
             shuffle (memoryResults.begin(), memoryResults.end(), default_random_engine(seed));
-            //std::shuffle(memResults.begin(), memResults.end(), std::mt19937{std::random_device{}()});
             //cout << "size of memoryTree: " << memoryResults.size() << endl; 
 
             //check if memoryTree works
